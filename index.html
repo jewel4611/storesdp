@@ -386,7 +386,7 @@ const db=firebase.firestore();
 // bKash / Nagad / Upay "Send Money" number — same number for all three
 const PAYMENT_NUMBERS={bKash:'01611464611',Nagad:'01611464611',Upay:'01611464611'};
 
-const CAT_ICONS={'Electronics':'🔌','Mobile & Accessories':'📱','Computer & IT':'💻','Stationery':'✏️','Food & Beverage':'🍪','Clothing':'👕','Health & Beauty':'💄','Home & Living':'🏠','Services':'🛠️','Recharge & Cards':'💳','Toys':'🧸','Other':'📦'};
+const CAT_ICONS={'Electronics':'🔌','Mobile & Accessories':'📱','Computer & IT':'💻','Stationery':'✏️','Food & Beverage':'🍪','Clothing':'👕','Health & Beauty':'💄','Home & Living':'🏠','Services':'🛠️','Recharge & Cards':'💳','Toys':'🧸','Photocopy & print':'🖨️','Pen':'🖊️','Other':'📦'};
 function catIcon(c){return CAT_ICONS[c]||'🏷️';}
 
 let PRODUCTS=[],BANNERS=[],CART=JSON.parse(localStorage.getItem('sdp_cart')||'[]'),activeCat='All';
