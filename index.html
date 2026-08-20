@@ -33,8 +33,25 @@
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', 'G-7FHDX9BW4V');
+  gtag('config', 'G-7FHDX9BW4V', {send_page_view: false});
 </script>
+
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1747169159834779');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1747169159834779&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
 
 <script type="application/ld+json">
 {
@@ -536,7 +553,7 @@ function bannerClick(cat){if(cat)openCategory(cat);}
 ═══════════════════════════════════ */
 function goHome(){currentView={name:'home'};updateURL();window.scrollTo(0,0);renderCategories();renderView();}
 function openCategory(cat){activeCat=cat;currentView={name:'category',cat};updateURL();renderCategories();window.scrollTo(0,0);renderView();}
-function openProduct(id){currentView={name:'product',id};updateURL();window.scrollTo(0,0);renderView();const p=PRODUCTS.find(x=>x.id===id);if(p)gaEvent('view_item',{currency:'BDT',value:effectivePrice(p),items:[gaItem(p)]});}
+function openProduct(id){currentView={name:'product',id};updateURL();window.scrollTo(0,0);renderView();const p=PRODUCTS.find(x=>x.id===id);if(p){gaEvent('view_item',{currency:'BDT',value:effectivePrice(p),items:[gaItem(p)]});fbEvent('ViewContent',{content_ids:[p.id],content_type:'product',content_name:p.name,value:effectivePrice(p),currency:'BDT'});}}
 function openMyOrders(){currentView={name:'myorders'};updateURL();window.scrollTo(0,0);renderView();}
 function openPolicy(){currentView={name:'policy'};updateURL();window.scrollTo(0,0);renderView();}
 function openWishlist(){currentView={name:'wishlist'};updateURL();window.scrollTo(0,0);renderView();}
@@ -579,17 +596,18 @@ function applyViewMeta(){
   updateMeta('Supreme Digital Point — Electronics, Mobile Accessories & More in Mirpur, Dhaka','Shop electronics, mobile accessories, computer parts, stationery and more from Supreme Digital Point in Mirpur, Dhaka. Cash on delivery, bKash/Nagad/Upay accepted.');
 }
 function trackPageView(){
-  if(typeof gtag!=='function')return;
   let path='/';
   if(currentView.name==='category')path='/?cat='+encodeURIComponent(currentView.cat);
   else if(currentView.name==='product')path='/?product='+encodeURIComponent(currentView.id);
   else if(currentView.name==='myorders')path='/?view=myorders';
   else if(currentView.name==='policy')path='/?view=policy';
   else if(currentView.name==='wishlist')path='/?view=wishlist';
-  gtag('event','page_view',{page_path:path,page_title:document.getElementById('pageTitle').textContent,page_location:location.href});
+  if(typeof gtag==='function')gtag('event','page_view',{page_path:path,page_title:document.getElementById('pageTitle').textContent,page_location:location.href});
+  if(typeof fbq==='function')fbq('track','PageView');
 }
 function gaEvent(name,params){if(typeof gtag==='function')gtag('event',name,params);}
 function gaItem(p,qty){return{item_id:p.id,item_name:p.name,item_category:p.category||'',price:effectivePrice(p),quantity:qty||1};}
+function fbEvent(name,params){if(typeof fbq==='function')fbq('track',name,params);}
 function buildWishlistView(){
   const items=PRODUCTS.filter(p=>WISHLIST.includes(p.id));
   return `<section class="grid-section">
@@ -846,6 +864,7 @@ function addToCartFromPdp(id){
   else{CART.push({id,name:p.name,price:effectivePrice(p),qty,imageUrl:p.imageUrl||''});}
   saveCart();toast(`${p.name} added to cart`);renderView();
   gaEvent('add_to_cart',{currency:'BDT',value:effectivePrice(p)*qty,items:[gaItem(p,qty)]});
+  fbEvent('AddToCart',{content_ids:[p.id],content_type:'product',content_name:p.name,value:effectivePrice(p)*qty,currency:'BDT'});
 }
 function openLightboxFromPdp(){
   const p=PRODUCTS.find(x=>x.id===window._pdpId);
@@ -899,6 +918,7 @@ function addToCart(id){
   CART.push({id,name:p.name,price:effectivePrice(p),qty:1,imageUrl:p.imageUrl||''});
   saveCart();renderView();renderCartBody();toast(`${p.name} added to cart`);
   gaEvent('add_to_cart',{currency:'BDT',value:effectivePrice(p),items:[gaItem(p,1)]});
+  fbEvent('AddToCart',{content_ids:[p.id],content_type:'product',content_name:p.name,value:effectivePrice(p),currency:'BDT'});
 }
 function changeQty(id,delta){
   const item=CART.find(c=>c.id===id);if(!item)return;
@@ -1153,6 +1173,7 @@ function openCheckout(){
   document.getElementById('checkoutBg').classList.add('show');
   renderCheckoutStep();
   gaEvent('begin_checkout',{currency:'BDT',value:cartTotal(),items:CART.map(c=>({item_id:c.id,item_name:c.name,price:c.price,quantity:c.qty}))});
+  fbEvent('InitiateCheckout',{content_ids:CART.map(c=>c.id),contents:CART.map(c=>({id:c.id,quantity:c.qty})),num_items:CART.reduce((s,c)=>s+c.qty,0),value:cartTotal(),currency:'BDT'});
 }
 function closeCheckout(){document.getElementById('checkoutBg').classList.remove('show');}
 
@@ -1288,6 +1309,7 @@ async function placeOrder(){
       updateIdentifyLabel();
     }catch(e){console.error('profile save failed',e);}
     gaEvent('purchase',{transaction_id:orderId,currency:'BDT',value:cartTotal(),shipping:0,payment_type:checkoutData.paymentMethod,items:CART.map(c=>({item_id:c.id,item_name:c.name,price:c.price,quantity:c.qty}))});
+    fbEvent('Purchase',{content_ids:CART.map(c=>c.id),contents:CART.map(c=>({id:c.id,quantity:c.qty})),num_items:CART.reduce((s,c)=>s+c.qty,0),value:cartTotal(),currency:'BDT'});
     showOrderSuccess(orderId);
     CART=[];saveCart();renderView();
   }catch(e){
