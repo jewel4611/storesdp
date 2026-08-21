@@ -154,9 +154,13 @@ a{color:inherit;text-decoration:none;}
 .cat-tile .ct{font-size:.62rem;color:var(--text3);margin-top:2px;}
 
 /* ── Horizontal scroll rows (flash sale / best sellers) ── */
-.hscroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;max-width:1180px;margin:0 auto;scrollbar-width:none;}
+.hscroll-row{display:flex;align-items:center;gap:6px;max-width:1180px;margin:0 auto;}
+.hscroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;scroll-behavior:smooth;flex:1;min-width:0;}
 .hscroll::-webkit-scrollbar{display:none;}
 .hscroll .pcard{min-width:150px;max-width:150px;}
+.hscroll-arrow{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--card);border:1.5px solid var(--border);color:var(--navy);font-size:1.2rem;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);}
+.hscroll-arrow:hover{background:var(--navy);color:#fff;}
+@media(max-width:700px){.hscroll-arrow{width:28px;height:28px;font-size:1rem;}}
 
 /* ── Product grid ── */
 .grid-section{padding:22px 18px 60px;}
@@ -452,6 +456,9 @@ function parseViewFromURL(){
   if(params.get('view')==='myorders')return{name:'myorders'};
   if(params.get('view')==='policy')return{name:'policy'};
   if(params.get('view')==='wishlist')return{name:'wishlist'};
+  if(params.get('view')==='flashsale')return{name:'flashsale'};
+  if(params.get('view')==='featured')return{name:'featured'};
+  if(params.get('view')==='bestsellers')return{name:'bestsellers'};
   return{name:'home'};
 }
 function updateURL(){
@@ -461,6 +468,7 @@ function updateURL(){
   else if(currentView.name==='myorders')url+='?view=myorders';
   else if(currentView.name==='policy')url+='?view=policy';
   else if(currentView.name==='wishlist')url+='?view=wishlist';
+  else if(['flashsale','featured','bestsellers'].includes(currentView.name))url+='?view='+currentView.name;
   history.pushState({view:currentView},'',url);
 }
 function updateMeta(title,desc){
@@ -557,6 +565,7 @@ function openProduct(id){currentView={name:'product',id};updateURL();window.scro
 function openMyOrders(){currentView={name:'myorders'};updateURL();window.scrollTo(0,0);renderView();}
 function openPolicy(){currentView={name:'policy'};updateURL();window.scrollTo(0,0);renderView();}
 function openWishlist(){currentView={name:'wishlist'};updateURL();window.scrollTo(0,0);renderView();}
+function openSeeAll(which){currentView={name:which};updateURL();window.scrollTo(0,0);renderView();}
 
 function onSearchInput(){
   const q=document.getElementById('searchBox').value.trim();
@@ -575,6 +584,9 @@ function renderView(){
   if(currentView.name==='myorders'){root.innerHTML=buildMyOrders();return;}
   if(currentView.name==='policy'){root.innerHTML=buildPolicyPage();return;}
   if(currentView.name==='wishlist'){root.innerHTML=buildWishlistView();return;}
+  if(currentView.name==='flashsale'){root.innerHTML=buildFlashSaleView();return;}
+  if(currentView.name==='featured'){root.innerHTML=buildFeaturedView();return;}
+  if(currentView.name==='bestsellers'){root.innerHTML=buildBestSellersView();return;}
   if(currentView.name==='search'){root.innerHTML=buildSearchResults();return;}
   if(currentView.name==='category'){root.innerHTML=buildCategoryView(currentView.cat);return;}
   root.innerHTML=buildHome();
@@ -592,6 +604,12 @@ function applyViewMeta(){
     updateMeta('Delivery & Return Policy — Supreme Digital Point','Delivery areas, charges, payment methods and return/exchange policy for Supreme Digital Point, Mirpur, Dhaka.');return;
   }else if(currentView.name==='wishlist'){
     updateMeta('My Wishlist — Supreme Digital Point','Products you\'ve saved from Supreme Digital Point.');return;
+  }else if(currentView.name==='flashsale'){
+    updateMeta('Flash Sale — Supreme Digital Point','Limited-time deals at Supreme Digital Point, Mirpur, Dhaka.');return;
+  }else if(currentView.name==='featured'){
+    updateMeta('Featured Products — Supreme Digital Point','Hand-picked products from Supreme Digital Point, Mirpur, Dhaka.');return;
+  }else if(currentView.name==='bestsellers'){
+    updateMeta('Best Sellers — Supreme Digital Point','Our most popular products at Supreme Digital Point, Mirpur, Dhaka.');return;
   }
   updateMeta('Supreme Digital Point — Electronics, Mobile Accessories & More in Mirpur, Dhaka','Shop electronics, mobile accessories, computer parts, stationery and more from Supreme Digital Point in Mirpur, Dhaka. Cash on delivery, bKash/Nagad/Upay accepted.');
 }
@@ -613,6 +631,30 @@ function buildWishlistView(){
   return `<section class="grid-section">
     <div class="sec-hd" style="max-width:1180px;margin:0 auto 14px;"><h2>♥ My Wishlist</h2>${items.length?`<span style="font-size:.8rem;color:var(--text2);">${items.length} item(s)</span>`:''}</div>
     ${items.length?`<div class="pgrid">${buildProductGrid(items)}</div>`:`<div class="empty-state"><div class="em-icon">♡</div>Nothing saved yet — tap the heart on any product to add it here.</div>`}
+  </section>`;
+}
+function buildFlashSaleView(){
+  const items=PRODUCTS.filter(isOnSale);
+  return `<section class="grid-section">
+    <div class="breadcrumb" style="max-width:1180px;margin:0 auto 12px;"><a href="#" onclick="goHome();return false;">Home</a> › Flash Sale</div>
+    <div class="sec-hd" style="max-width:1180px;margin:0 auto 14px;"><h2>⚡ Flash Sale</h2><span style="font-size:.8rem;color:var(--text2);">${items.length} item(s)</span></div>
+    ${items.length?`<div class="pgrid">${buildProductGrid(items)}</div>`:`<div class="empty-state"><div class="em-icon">⚡</div>No flash sale items right now — check back soon!</div>`}
+  </section>`;
+}
+function buildFeaturedView(){
+  const items=PRODUCTS.filter(p=>p.isFeatured&&(p.qty||0)>0);
+  return `<section class="grid-section">
+    <div class="breadcrumb" style="max-width:1180px;margin:0 auto 12px;"><a href="#" onclick="goHome();return false;">Home</a> › Featured Products</div>
+    <div class="sec-hd" style="max-width:1180px;margin:0 auto 14px;"><h2>⭐ Featured Products</h2><span style="font-size:.8rem;color:var(--text2);">${items.length} item(s)</span></div>
+    ${items.length?`<div class="pgrid">${buildProductGrid(items)}</div>`:`<div class="empty-state"><div class="em-icon">⭐</div>No featured products right now.</div>`}
+  </section>`;
+}
+function buildBestSellersView(){
+  const items=[...PRODUCTS].filter(p=>(p.unitsSold60d||0)>0).sort((a,b)=>(b.unitsSold60d||0)-(a.unitsSold60d||0));
+  return `<section class="grid-section">
+    <div class="breadcrumb" style="max-width:1180px;margin:0 auto 12px;"><a href="#" onclick="goHome();return false;">Home</a> › Best Sellers</div>
+    <div class="sec-hd" style="max-width:1180px;margin:0 auto 14px;"><h2>🔥 Best Sellers</h2><span style="font-size:.8rem;color:var(--text2);">${items.length} item(s)</span></div>
+    ${items.length?`<div class="pgrid">${items.map(p=>productCard(p,true)).join('')}</div>`:`<div class="empty-state"><div class="em-icon">🔥</div>No sales data yet.</div>`}
   </section>`;
 }
 function buildPolicyPage(){
@@ -641,11 +683,27 @@ function buildPolicyPage(){
 /* ═══════════════════════════════════
    HOME VIEW
 ═══════════════════════════════════ */
+function hscrollSection(sectionId,cls,icon,title,items,seeAllView,isBest){
+  return `<section class="sec ${cls}"><div class="sec-hd">
+      <h2>${icon} ${title}</h2>
+      <a href="#" class="see-all" onclick="openSeeAll('${seeAllView}');return false;">See All →</a>
+    </div>
+    <div class="hscroll-row">
+      <button class="hscroll-arrow left" onclick="scrollHscroll('${sectionId}',-1)" aria-label="Scroll left">‹</button>
+      <div class="hscroll" id="${sectionId}">${items.map(p=>productCard(p,isBest)).join('')}</div>
+      <button class="hscroll-arrow right" onclick="scrollHscroll('${sectionId}',1)" aria-label="Scroll right">›</button>
+    </div>
+  </section>`;
+}
+function scrollHscroll(id,dir){
+  const el=document.getElementById(id);
+  if(el)el.scrollBy({left:dir*310,behavior:'smooth'});
+}
 function buildHome(){
   const cats=[...new Set(PRODUCTS.map(p=>p.category).filter(Boolean))];
   const flash=PRODUCTS.filter(isOnSale);
   const featured=PRODUCTS.filter(p=>p.isFeatured&&(p.qty||0)>0);
-  const bestSellers=[...PRODUCTS].filter(p=>(p.unitsSold60d||0)>0).sort((a,b)=>(b.unitsSold60d||0)-(a.unitsSold60d||0)).slice(0,10);
+  const bestSellers=[...PRODUCTS].filter(p=>(p.unitsSold60d||0)>0).sort((a,b)=>(b.unitsSold60d||0)-(a.unitsSold60d||0));
 
   let html='';
 
@@ -658,23 +716,9 @@ function buildHome(){
     </section>`;
   }
 
-  if(flash.length){
-    html+=`<section class="sec tinted"><div class="sec-hd"><h2>⚡ Flash Sale</h2></div>
-      <div class="hscroll">${flash.map(p=>productCard(p)).join('')}</div>
-    </section>`;
-  }
-
-  if(featured.length){
-    html+=`<section class="sec"><div class="sec-hd"><h2>⭐ Featured Products</h2></div>
-      <div class="hscroll">${featured.map(p=>productCard(p)).join('')}</div>
-    </section>`;
-  }
-
-  if(bestSellers.length){
-    html+=`<section class="sec tinted"><div class="sec-hd"><h2>🔥 Best Sellers</h2></div>
-      <div class="hscroll">${bestSellers.map(p=>productCard(p,true)).join('')}</div>
-    </section>`;
-  }
+  if(flash.length)html+=hscrollSection('flashScroll','tinted','⚡','Flash Sale',flash.slice(0,10),'flashsale');
+  if(featured.length)html+=hscrollSection('featScroll','','⭐','Featured Products',featured.slice(0,10),'featured');
+  if(bestSellers.length)html+=hscrollSection('bestScroll','tinted','🔥','Best Sellers',bestSellers.slice(0,10),'bestsellers',true);
 
   html+=`<section class="grid-section"><div class="sec-hd" style="max-width:1180px;margin:0 auto 14px;"><h2>🛍️ All Products</h2></div>
     <div class="pgrid">${buildProductGrid(PRODUCTS)}</div>
