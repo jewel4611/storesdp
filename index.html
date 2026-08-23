@@ -348,7 +348,7 @@ a{color:inherit;text-decoration:none;}
   <p style="margin-top:6px;">📞 <a href="tel:01614501860" style="color:#fbbf24;">01614-501860</a> · <a href="https://maps.app.goo.gl/UB5tPg8Fby7k5wNi8" target="_blank" style="color:#fbbf24;">📍 View on Map</a></p>
   <p style="margin-top:12px;font-weight:700;color:#e2e8f0;">We Accept</p>
   <p style="margin-top:4px;">💵 Cash on Delivery &nbsp;·&nbsp; 📱 bKash &nbsp;·&nbsp; 📱 Nagad &nbsp;·&nbsp; 🏦 Bank Transfer</p>
-  <p style="margin-top:8px;">🚚 Delivery within 24 hours* &nbsp;·&nbsp; Free delivery in Paikpara</p>
+  <p style="margin-top:8px;">🚚 Delivery within 24 hours* &nbsp;·&nbsp; Free in Paikpara &nbsp;·&nbsp; ৳80 inside Dhaka &nbsp;·&nbsp; ৳140 outside Dhaka</p>
   <p style="margin-top:4px;font-size:.68rem;color:#94a3b8;">*Delivery time may vary based on location and product availability.</p>
   <p style="margin-top:10px;"><a href="#" onclick="openPolicy();return false;" style="color:#cbd5e1;text-decoration:underline;">Delivery & Return Policy</a></p>
 </footer>
@@ -429,6 +429,27 @@ const db=firebase.firestore();
 // bKash / Nagad / Upay "Send Money" number — same number for all three
 const PAYMENT_NUMBERS={bKash:'01611464611',Nagad:'01611464611',Upay:'01611464611'};
 const BANK_DETAILS={bankName:'Dutch Bangla Bank Plc.',accountName:'Supreme Digital Point',accountNumber:'115 110 0456190',branch:'Mirpur-1',routingNumber:'090262982'};
+// Delivery fee: free in our own Paikpara neighborhood, Tk80 elsewhere inside Dhaka, Tk140 outside Dhaka.
+// Detected automatically from the typed address — imperfect (free text), so it's shown clearly
+// at every step and can still be corrected by admin when confirming the order.
+function deliveryZone(address){
+  const a=(address||'').toLowerCase();
+  if(a.includes('paikpara'))return'paikpara';
+  if(a.includes('dhaka'))return'dhaka';
+  return'outside';
+}
+function computeDeliveryFee(address){
+  const zone=deliveryZone(address);
+  if(zone==='paikpara')return 0;
+  if(zone==='dhaka')return 80;
+  return 140;
+}
+function deliveryZoneLabel(address){
+  const zone=deliveryZone(address);
+  if(zone==='paikpara')return'Paikpara — Free delivery';
+  if(zone==='dhaka')return'Inside Dhaka — ৳80 delivery';
+  return'Outside Dhaka — ৳140 delivery';
+}
 
 const CAT_ICONS={'Electronics':'🔌','Mobile & Accessories':'📱','Computer & IT':'💻','Stationery':'✏️','Food & Beverage':'🍪','Clothing':'👕','Health & Beauty':'💄','Home & Living':'🏠','Services':'🛠️','Recharge & Cards':'💳','Toys':'🧸','Photocopy & print':'🖨️','Pen':'🖊️','Khata':'📓','Notebook':'📓','Bag':'👜','Watch':'⌚','Charger':'🔋','Cable':'🔌','Battery':'🔋','Speaker':'🔊','Headphone':'🎧','Camera':'📷','Gift Items':'🎁','Cosmetics':'💄','Kitchen':'🍳','Sports':'⚽','Books':'📚','Shoes':'👟','Bag & Luggage':'🧳','Security & CCTV':'📹','Networking':'🌐','Printer & Ink':'🖨️','Software':'💿','Balloon':'🎈','Repair & Service':'🔧','Furniture':'🪑','Gift & Party':'🎉','Other':'📦'};
 const CAT_KEYWORDS=[['print','🖨️'],['pen','🖊️'],['book','📚'],['note','📓'],['khata','📓'],['bag','👜'],['luggage','🧳'],['watch','⌚'],['charg','🔋'],['batter','🔋'],['cable','🔌'],['wire','🔌'],['speaker','🔊'],['sound','🔊'],['audio','🔊'],['headphone','🎧'],['earphone','🎧'],['earbud','🎧'],['camera','📷'],['gift','🎁'],['cosmetic','💄'],['beauty','💄'],['kitchen','🍳'],['cook','🍳'],['sport','⚽'],['shoe','👟'],['sandal','👟'],['furniture','🪑'],['chair','🪑'],['table','🪑'],['security','📹'],['cctv','📹'],['network','🌐'],['wifi','🌐'],['router','🌐'],['software','💿'],['game','🎮'],['balloon','🎈'],['party','🎉'],['repair','🔧'],['service','🔧'],['tool','🔧'],['watch','⌚'],['jewel','💍'],['bike','🚲'],['cycle','🚲'],['baby','🍼'],['kids','🧸'],['toy','🧸'],['plastic','🧴'],['bottle','🧴'],['light','💡'],['lamp','💡'],['bulb','💡'],['fan','🌀'],['ac','❄️'],['mobile','📱'],['phone','📱'],['sim','📶'],['card','💳'],['recharge','💳']];
@@ -663,7 +684,7 @@ function buildPolicyPage(){
     <h1 class="pdp-name">Delivery & Return Policy</h1>
 
     <h2 style="font-size:1rem;font-weight:800;margin:20px 0 8px;">🚚 Delivery</h2>
-    <p class="pdp-desc">We deliver across Dhaka. Orders placed before evening are typically prepared the same or next business day — our team will call you at the number provided to confirm delivery timing and any charges before dispatch. For a specific delivery estimate to your area, message us on WhatsApp or call before ordering.</p>
+    <p class="pdp-desc">Delivery is <b>free within Paikpara</b> (our own neighborhood), <b>৳80 elsewhere inside Dhaka city</b>, and <b>৳140 outside Dhaka</b>. This is calculated automatically from the address you enter at checkout — the exact charge is shown before you confirm your order. Orders placed before evening are typically prepared the same or next business day; our team will call you to confirm delivery timing before dispatch.</p>
 
     <h2 style="font-size:1rem;font-weight:800;margin:20px 0 8px;">💳 Payment</h2>
     <p class="pdp-desc">We accept Cash on Delivery, bKash / Nagad / Upay "Send Money", and direct Bank Transfer. For mobile wallet or bank transfers, your payment is confirmed manually by our team using the transaction/reference number before your order is prepared. Full payment details are shown at checkout.</p>
@@ -975,6 +996,7 @@ function changeQty(id,delta){
 }
 function removeFromCart(id){CART=CART.filter(c=>c.id!==id);saveCart();renderView();renderCartBody();}
 function cartTotal(){return CART.reduce((s,c)=>s+c.qty*c.price,0);}
+function orderTotal(){return cartTotal()+(checkoutData.deliveryFee||0);}
 function updateCartBadge(){
   const count=CART.reduce((s,c)=>s+c.qty,0);
   const badge=document.getElementById('cartCount');
@@ -1198,6 +1220,7 @@ function renderOrderDetail(code,o,targetId){
   <div class="order-card-hd" style="margin-bottom:10px;"><span style="font-family:'Poppins',sans-serif;font-weight:700;font-size:1.05rem;">#${esc(code)}</span><span class="order-status-pill ${statusCls}">${statusLabel}</span></div>
   <div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:12px;">
     ${itemsHtml}
+    ${o.deliveryFee?`<div class="order-summary-row"><span>Delivery</span><span>${fmt(o.deliveryFee)}</span></div>`:''}
     <div class="order-summary-row grand"><span>Total</span><span>${fmt(o.grandTotal)}</span></div>
   </div>
   <div style="font-size:.8rem;color:var(--text2);margin-bottom:4px;"><b>Deliver to:</b> ${esc(o.customerName)}</div>
@@ -1231,9 +1254,10 @@ function renderCheckoutStep(){
     body.innerHTML=`${stepsHtml}
     <div class="field"><label>Full Name *</label><input id="ck_name" value="${esc(checkoutData.name||'')}" placeholder="Your name"></div>
     <div class="field"><label>Phone Number *</label><input id="ck_phone" value="${esc(checkoutData.phone||'')}" placeholder="01XXXXXXXXX" type="tel"></div>
-    <div class="field"><label>Delivery Address *</label><textarea id="ck_addr" rows="2" placeholder="House, road, area, city">${esc(checkoutData.address||'')}</textarea></div>
+    <div class="field"><label>Delivery Address *</label><textarea id="ck_addr" rows="2" placeholder="House, road, area, city" oninput="previewDeliveryFee()">${esc(checkoutData.address||'')}</textarea><div id="deliveryFeePreview" style="font-size:.74rem;color:var(--gold-deep);font-weight:600;margin-top:5px;"></div></div>
     <div class="field"><label>Note (optional)</label><input id="ck_note" value="${esc(checkoutData.note||'')}" placeholder="Delivery instructions, preferred time…"></div>
     <div class="btn-row"><button class="btn btn-primary" onclick="checkoutNext1()">Continue →</button></div>`;
+    setTimeout(previewDeliveryFee,0);
   }else if(checkoutStep===2){
     title.textContent='Payment Method';
     const pm=checkoutData.paymentMethod;
@@ -1244,28 +1268,28 @@ function renderCheckoutStep(){
     </div>
     <div class="pay-opt ${pm==='bKash'?'selected':''}" onclick="selectPM('bKash')">
       <div class="pay-opt-hd">📱 <span>bKash — Send Money</span></div>
-      ${pm==='bKash'?`<div class="pay-instructions">Send <b>${fmt(cartTotal())}</b> to <b>${PAYMENT_NUMBERS.bKash}</b> (Send Money, not Payment) then enter the Transaction ID below.
+      ${pm==='bKash'?`<div class="pay-instructions">Send <b>${fmt(orderTotal())}</b> to <b>${PAYMENT_NUMBERS.bKash}</b> (Send Money, not Payment) then enter the Transaction ID below.
         <div class="field" style="margin-top:10px;"><label>Your bKash Number *</label><input id="ck_sender" value="${esc(checkoutData.senderNumber||'')}" placeholder="01XXXXXXXXX"></div>
         <div class="field" style="margin-bottom:0;"><label>Transaction ID *</label><input id="ck_trx" value="${esc(checkoutData.trxId||'')}" placeholder="e.g. 9F7A2XXXXX"></div>
       </div>`:''}
     </div>
     <div class="pay-opt ${pm==='Nagad'?'selected':''}" onclick="selectPM('Nagad')">
       <div class="pay-opt-hd">📱 <span>Nagad — Send Money</span></div>
-      ${pm==='Nagad'?`<div class="pay-instructions">Send <b>${fmt(cartTotal())}</b> to <b>${PAYMENT_NUMBERS.Nagad}</b> (Send Money) then enter the Transaction ID below.
+      ${pm==='Nagad'?`<div class="pay-instructions">Send <b>${fmt(orderTotal())}</b> to <b>${PAYMENT_NUMBERS.Nagad}</b> (Send Money) then enter the Transaction ID below.
         <div class="field" style="margin-top:10px;"><label>Your Nagad Number *</label><input id="ck_sender" value="${esc(checkoutData.senderNumber||'')}" placeholder="01XXXXXXXXX"></div>
         <div class="field" style="margin-bottom:0;"><label>Transaction ID *</label><input id="ck_trx" value="${esc(checkoutData.trxId||'')}" placeholder="e.g. 9F7A2XXXXX"></div>
       </div>`:''}
     </div>
     <div class="pay-opt ${pm==='Upay'?'selected':''}" onclick="selectPM('Upay')">
       <div class="pay-opt-hd">📱 <span>Upay — Send Money</span></div>
-      ${pm==='Upay'?`<div class="pay-instructions">Send <b>${fmt(cartTotal())}</b> to <b>${PAYMENT_NUMBERS.Upay}</b> (Send Money) then enter the Transaction ID below.
+      ${pm==='Upay'?`<div class="pay-instructions">Send <b>${fmt(orderTotal())}</b> to <b>${PAYMENT_NUMBERS.Upay}</b> (Send Money) then enter the Transaction ID below.
         <div class="field" style="margin-top:10px;"><label>Your Upay Number *</label><input id="ck_sender" value="${esc(checkoutData.senderNumber||'')}" placeholder="01XXXXXXXXX"></div>
         <div class="field" style="margin-bottom:0;"><label>Transaction ID *</label><input id="ck_trx" value="${esc(checkoutData.trxId||'')}" placeholder="e.g. 9F7A2XXXXX"></div>
       </div>`:''}
     </div>
     <div class="pay-opt ${pm==='Bank Transfer'?'selected':''}" onclick="selectPM('Bank Transfer')">
       <div class="pay-opt-hd">🏦 <span>Bank Transfer</span></div>
-      ${pm==='Bank Transfer'?`<div class="pay-instructions">Transfer <b>${fmt(cartTotal())}</b> to:<br>
+      ${pm==='Bank Transfer'?`<div class="pay-instructions">Transfer <b>${fmt(orderTotal())}</b> to:<br>
         <b>${esc(BANK_DETAILS.bankName)}</b><br>
         A/C Name: <b>${esc(BANK_DETAILS.accountName)}</b><br>
         A/C Number: <b>${esc(BANK_DETAILS.accountNumber)}</b><br>
@@ -1282,7 +1306,8 @@ function renderCheckoutStep(){
     body.innerHTML=`${stepsHtml}
     <div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
       ${itemsHtml}
-      <div class="order-summary-row grand"><span>Total</span><span>${fmt(cartTotal())}</span></div>
+      <div class="order-summary-row"><span>Delivery (${deliveryZoneLabel(checkoutData.address).split('—')[0].trim()})</span><span>${checkoutData.deliveryFee?fmt(checkoutData.deliveryFee):'Free'}</span></div>
+      <div class="order-summary-row grand"><span>Total</span><span>${fmt(orderTotal())}</span></div>
     </div>
     <div style="font-size:.82rem;color:var(--text2);margin-bottom:6px;"><b>Deliver to:</b> ${esc(checkoutData.name)}, ${esc(checkoutData.phone)}</div>
     <div style="font-size:.82rem;color:var(--text2);margin-bottom:6px;"><b>Address:</b> ${esc(checkoutData.address)}</div>
@@ -1298,10 +1323,19 @@ function checkoutNext1(){
   if(!name){toast('Enter your name','error');return;}
   if(!phone||phone.length<10){toast('Enter a valid phone number','error');return;}
   if(!address){toast('Enter your delivery address','error');return;}
-  checkoutData={...checkoutData,name,phone,address,note};
+  checkoutData={...checkoutData,name,phone,address,note,deliveryFee:computeDeliveryFee(address)};
   checkoutStep=2;renderCheckoutStep();
 }
 function selectPM(pm){checkoutData.paymentMethod=pm;renderCheckoutStep();}
+function previewDeliveryFee(){
+  const el=document.getElementById('deliveryFeePreview');
+  const addrEl=document.getElementById('ck_addr');
+  if(!el||!addrEl)return;
+  const address=addrEl.value.trim();
+  if(!address){el.textContent='';return;}
+  const fee=computeDeliveryFee(address);
+  el.textContent=`📍 ${deliveryZoneLabel(address)}`;
+}
 function checkoutNext2(){
   if(checkoutData.paymentMethod!=='COD'){
     const sender=document.getElementById('ck_sender')?.value.trim();
@@ -1324,11 +1358,12 @@ async function placeOrder(){
         return;
       }
     }
+    const deliveryFee=checkoutData.deliveryFee||0;
     const order={
       customerName:checkoutData.name,customerPhone:checkoutData.phone,customerAddress:checkoutData.address,
       note:checkoutData.note||'',
       items:CART.map(c=>({productId:c.id,name:c.name,qty:c.qty,price:c.price})),
-      subtotal:cartTotal(),grandTotal:cartTotal(),
+      subtotal:cartTotal(),deliveryFee,grandTotal:orderTotal(),
       paymentMethod:checkoutData.paymentMethod,
       trxId:checkoutData.trxId||'',senderNumber:checkoutData.senderNumber||'',
       status:'pending',createdAt:new Date().toISOString()
@@ -1346,14 +1381,14 @@ async function placeOrder(){
     try{
       await db.collection('storeCustomers').doc(checkoutData.phone).set({name:checkoutData.name,address:checkoutData.address,phone:checkoutData.phone,updatedAt:new Date().toISOString()},{merge:true});
       await db.collection('storeCustomers').doc(checkoutData.phone).collection('orders').doc(orderId).set({
-        itemCount:CART.reduce((s,c)=>s+c.qty,0),grandTotal:cartTotal(),status:'pending',createdAt:order.createdAt
+        itemCount:CART.reduce((s,c)=>s+c.qty,0),grandTotal:orderTotal(),status:'pending',createdAt:order.createdAt
       });
       currentCustomer={phone:checkoutData.phone,name:checkoutData.name,address:checkoutData.address};
       localStorage.setItem('sdp_customer',JSON.stringify(currentCustomer));
       updateIdentifyLabel();
     }catch(e){console.error('profile save failed',e);}
-    gaEvent('purchase',{transaction_id:orderId,currency:'BDT',value:cartTotal(),shipping:0,payment_type:checkoutData.paymentMethod,items:CART.map(c=>({item_id:c.id,item_name:c.name,price:c.price,quantity:c.qty}))});
-    fbEvent('Purchase',{content_ids:CART.map(c=>c.id),contents:CART.map(c=>({id:c.id,quantity:c.qty})),num_items:CART.reduce((s,c)=>s+c.qty,0),value:cartTotal(),currency:'BDT'});
+    gaEvent('purchase',{transaction_id:orderId,currency:'BDT',value:orderTotal(),shipping:deliveryFee,payment_type:checkoutData.paymentMethod,items:CART.map(c=>({item_id:c.id,item_name:c.name,price:c.price,quantity:c.qty}))});
+    fbEvent('Purchase',{content_ids:CART.map(c=>c.id),contents:CART.map(c=>({id:c.id,quantity:c.qty})),num_items:CART.reduce((s,c)=>s+c.qty,0),value:orderTotal(),currency:'BDT'});
     showOrderSuccess(orderId);
     CART=[];saveCart();renderView();
   }catch(e){
