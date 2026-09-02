@@ -460,7 +460,7 @@ function catIcon(c){
   return '🏷️';
 }
 
-let PRODUCTS=[],BANNERS=[],CART=JSON.parse(localStorage.getItem('sdp_cart')||'[]'),activeCat='All';
+let PRODUCTS=[],BANNERS=[],SERVICES=[],CART=JSON.parse(localStorage.getItem('sdp_cart')||'[]'),activeCat='All';
 let WISHLIST=JSON.parse(localStorage.getItem('sdp_wishlist')||'[]');
 let currentView=parseViewFromURL();
 let currentCustomer=JSON.parse(localStorage.getItem('sdp_customer')||'null');
@@ -473,6 +473,7 @@ window.addEventListener('popstate',e=>{
 function parseViewFromURL(){
   const params=new URLSearchParams(location.search);
   if(params.get('product'))return{name:'product',id:params.get('product')};
+  if(params.get('service'))return{name:'servicedetail',id:params.get('service')};
   if(params.get('cat'))return{name:'category',cat:params.get('cat')};
   if(params.get('view')==='myorders')return{name:'myorders'};
   if(params.get('view')==='policy')return{name:'policy'};
@@ -480,15 +481,18 @@ function parseViewFromURL(){
   if(params.get('view')==='flashsale')return{name:'flashsale'};
   if(params.get('view')==='featured')return{name:'featured'};
   if(params.get('view')==='bestsellers')return{name:'bestsellers'};
+  if(params.get('view')==='services')return{name:'services'};
   return{name:'home'};
 }
 function updateURL(){
   let url=location.pathname;
   if(currentView.name==='category')url+='?cat='+encodeURIComponent(currentView.cat);
   else if(currentView.name==='product')url+='?product='+encodeURIComponent(currentView.id);
+  else if(currentView.name==='servicedetail')url+='?service='+encodeURIComponent(currentView.id);
   else if(currentView.name==='myorders')url+='?view=myorders';
   else if(currentView.name==='policy')url+='?view=policy';
   else if(currentView.name==='wishlist')url+='?view=wishlist';
+  else if(currentView.name==='services')url+='?view=services';
   else if(['flashsale','featured','bestsellers'].includes(currentView.name))url+='?view='+currentView.name;
   history.pushState({view:currentView},'',url);
 }
@@ -551,6 +555,11 @@ db.collection('storeBanners').orderBy('order','asc').onSnapshot(snap=>{
   renderSlideshow();
 },err=>console.error(err));
 
+db.collection('publicServices').onSnapshot(snap=>{
+  SERVICES=snap.docs.map(d=>({id:d.id,...d.data()}));
+  if(currentView.name==='services'||currentView.name==='servicedetail')renderView();
+},err=>console.error(err));
+
 /* ═══════════════════════════════════
    SLIDESHOW
 ═══════════════════════════════════ */
@@ -575,7 +584,7 @@ function goToSlide(i){
   if(track)track.style.transform=`translateX(-${i*100}%)`;
   document.querySelectorAll('.slide-dot').forEach((d,idx)=>d.classList.toggle('active',idx===i));
 }
-function bannerClick(cat){if(cat)openCategory(cat);}
+function bannerClick(cat){if(!cat)return;if(cat.toLowerCase()==='services'){openServices();return;}openCategory(cat);}
 
 /* ═══════════════════════════════════
    VIEW ROUTER
@@ -587,6 +596,8 @@ function openMyOrders(){currentView={name:'myorders'};updateURL();window.scrollT
 function openPolicy(){currentView={name:'policy'};updateURL();window.scrollTo(0,0);renderView();}
 function openWishlist(){currentView={name:'wishlist'};updateURL();window.scrollTo(0,0);renderView();}
 function openSeeAll(which){currentView={name:which};updateURL();window.scrollTo(0,0);renderView();}
+function openServices(){currentView={name:'services'};updateURL();window.scrollTo(0,0);renderView();}
+function openServiceDetail(id){currentView={name:'servicedetail',id};updateURL();window.scrollTo(0,0);renderView();}
 
 function onSearchInput(){
   const q=document.getElementById('searchBox').value.trim();
@@ -601,6 +612,7 @@ function renderView(){
   applyViewMeta();
   trackPageView();
   if(currentView.name==='product'){filterBar.classList.add('hide');root.innerHTML=buildProductDetail(currentView.id);return;}
+  if(currentView.name==='servicedetail'){filterBar.classList.add('hide');root.innerHTML=buildServiceDetail(currentView.id);return;}
   filterBar.classList.remove('hide');
   if(currentView.name==='myorders'){root.innerHTML=buildMyOrders();return;}
   if(currentView.name==='policy'){root.innerHTML=buildPolicyPage();return;}
@@ -608,6 +620,7 @@ function renderView(){
   if(currentView.name==='flashsale'){root.innerHTML=buildFlashSaleView();return;}
   if(currentView.name==='featured'){root.innerHTML=buildFeaturedView();return;}
   if(currentView.name==='bestsellers'){root.innerHTML=buildBestSellersView();return;}
+  if(currentView.name==='services'){root.innerHTML=buildServicesView();return;}
   if(currentView.name==='search'){root.innerHTML=buildSearchResults();return;}
   if(currentView.name==='category'){root.innerHTML=buildCategoryView(currentView.cat);return;}
   root.innerHTML=buildHome();
@@ -617,6 +630,9 @@ function applyViewMeta(){
   if(currentView.name==='product'){
     const p=PRODUCTS.find(x=>x.id===currentView.id);
     if(p){updateMeta(`${p.name} — Supreme Digital Point`,(p.description||`${p.name} available at Supreme Digital Point, Mirpur, Dhaka. Cash on delivery, bKash/Nagad/Upay accepted.`).slice(0,155));return;}
+  }else if(currentView.name==='servicedetail'){
+    const s=SERVICES.find(x=>x.id===currentView.id);
+    if(s){updateMeta(`${s.name} — Supreme Digital Point`,(s.description||`${s.name} available at Supreme Digital Point, Mirpur, Dhaka.`).slice(0,155));return;}
   }else if(currentView.name==='category'){
     updateMeta(`${currentView.cat} — Supreme Digital Point`,`Shop ${currentView.cat} at Supreme Digital Point, Mirpur, Dhaka. Live stock, cash on delivery, bKash/Nagad/Upay accepted.`);return;
   }else if(currentView.name==='myorders'){
@@ -631,6 +647,8 @@ function applyViewMeta(){
     updateMeta('Featured Products — Supreme Digital Point','Hand-picked products from Supreme Digital Point, Mirpur, Dhaka.');return;
   }else if(currentView.name==='bestsellers'){
     updateMeta('Best Sellers — Supreme Digital Point','Our most popular products at Supreme Digital Point, Mirpur, Dhaka.');return;
+  }else if(currentView.name==='services'){
+    updateMeta('Services — Supreme Digital Point','Printing, visa processing, ticketing, web development, furniture work and more from Supreme Digital Point, Mirpur, Dhaka.');return;
   }
   updateMeta('Supreme Digital Point — Electronics, Mobile Accessories & More in Mirpur, Dhaka','Shop electronics, mobile accessories, computer parts, stationery and more from Supreme Digital Point in Mirpur, Dhaka. Cash on delivery, bKash/Nagad/Upay accepted.');
 }
@@ -647,6 +665,116 @@ function trackPageView(){
 function gaEvent(name,params){if(typeof gtag==='function')gtag('event',name,params);}
 function gaItem(p,qty){return{item_id:p.id,item_name:p.name,item_category:p.category||'',price:effectivePrice(p),quantity:qty||1};}
 function fbEvent(name,params){if(typeof fbq==='function')fbq('track',name,params);}
+/* ═══════════════════════════════════
+   SERVICES (quote-based, not purchasable via cart)
+═══════════════════════════════════ */
+function serviceCard(s){
+  const img=(s.images&&s.images[0])?`<img src="${s.images[0]}" alt="${esc(s.name)}" loading="lazy">`:`<div style="font-size:2rem;">🧰</div>`;
+  return `<div class="pcard">
+    <div class="pcard-img" onclick="openServiceDetail('${s.id}')" style="cursor:pointer;">${img}</div>
+    <div class="pcard-body">
+      <span class="pcard-cat">Service</span>
+      <span class="pcard-name" onclick="openServiceDetail('${s.id}')">${esc(s.name)}</span>
+      ${s.price?`<div class="pcard-price-row"><span class="pcard-price">${esc(s.price)}</span></div>`:''}
+      <div class="pcard-foot" style="justify-content:flex-end;">
+        <button class="add-btn" onclick="openServiceDetail('${s.id}')">Get a Quote</button>
+      </div>
+    </div>
+  </div>`;
+}
+function buildServicesView(){
+  return `<section class="grid-section">
+    <div class="sec-hd" style="max-width:1180px;margin:0 auto 14px;"><h2>🧰 Services</h2><span style="font-size:.8rem;color:var(--text2);">${SERVICES.length} service(s)</span></div>
+    <div style="max-width:1180px;margin:0 auto 18px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;font-size:.84rem;color:var(--text2);">
+      💬 Share your requirements and we'll get back to you with a price — no fixed cart checkout for these, just tell us what you need.
+    </div>
+    ${SERVICES.length?`<div class="pgrid">${SERVICES.map(serviceCard).join('')}</div>`:`<div class="empty-state"><div class="em-icon">🧰</div>No services listed yet — check back soon!</div>`}
+  </section>`;
+}
+function buildServiceDetail(id){
+  const s=SERVICES.find(x=>x.id===id);
+  if(!s)return `<div class="pdp"><div class="empty-state">Service not found. <a href="#" onclick="openServices();return false;" style="color:var(--gold-deep);font-weight:700;">Back to Services</a></div></div>`;
+  const imgs=(s.images&&s.images.length)?s.images:[];
+  window._svcDetailId=id;
+  return `<div class="pdp">
+    <div class="breadcrumb"><a href="#" onclick="goHome();return false;">Home</a> › <a href="#" onclick="openServices();return false;">Services</a> › ${esc(s.name)}</div>
+    <div class="pdp-grid">
+      <div>
+        <div class="pdp-gallery-main" id="pdpMainImg" onclick="openServiceLightbox()">${imgs.length?`<img src="${imgs[0]}" id="pdpMainImgTag" alt="${esc(s.name)}">`:`<div style="font-size:3rem;">🧰</div>`}</div>
+        ${imgs.length>1?`<div class="pdp-thumbs">${imgs.map((im,i)=>`<img src="${im}" class="pdp-thumb ${i===0?'active':''}" onclick="pdpSetImgGeneric(${i},['${imgs.join("','")}'])">`).join('')}</div>`:''}
+      </div>
+      <div>
+        <div class="pdp-cat">Service</div>
+        <h1 class="pdp-name">${esc(s.name)}</h1>
+        ${s.price?`<div class="pdp-price-row"><span class="pdp-price">${esc(s.price)}</span></div>`:''}
+        ${s.description?`<div class="pdp-desc">${esc(s.description)}</div>`:'<div class="pdp-desc">Contact us for details about this service.</div>'}
+        <button class="pdp-addbtn" style="margin-bottom:16px;" onclick="openServiceRequestForm('${s.id}')">💬 Request a Quote</button>
+        <div class="pdp-meta">Tell us your name, phone and what you need — our team will review and contact you with a price. Supreme Digital Point · Mirpur, Dhaka</div>
+      </div>
+    </div>
+  </div>`;
+}
+function pdpSetImgGeneric(i,imgs){
+  document.getElementById('pdpMainImgTag').src=imgs[i];
+  document.querySelectorAll('.pdp-thumb').forEach((t,idx)=>t.classList.toggle('active',idx===i));
+}
+function openServiceLightbox(){
+  const s=SERVICES.find(x=>x.id===window._svcDetailId);
+  if(!s||!s.images||!s.images.length)return;
+  window._lbImages=s.images;window._lbIdx=0;
+  document.getElementById('lightboxTitle').textContent=s.name;
+  renderLightboxBody();
+  document.getElementById('lightboxBg').classList.add('show');
+}
+
+/* ── Service request form (name/phone/address/notes → serviceRequests) ── */
+function openServiceRequestForm(serviceId){
+  const s=SERVICES.find(x=>x.id===serviceId);if(!s)return;
+  window._svcReqService=s;
+  document.getElementById('checkoutTitle').textContent='Request: '+s.name;
+  document.getElementById('checkoutBody').innerHTML=`
+  <p style="font-size:.8rem;color:var(--text2);margin-bottom:14px;">Tell us a bit about what you need — we'll review and contact you with a price.</p>
+  <div class="field"><label>Full Name *</label><input id="sr_name" value="${esc(currentCustomer?currentCustomer.name:'')}" placeholder="Your name"></div>
+  <div class="field"><label>Phone Number *</label><input id="sr_phone" value="${esc(currentCustomer?currentCustomer.phone:'')}" placeholder="01XXXXXXXXX" type="tel"></div>
+  <div class="field"><label>Address (optional)</label><textarea id="sr_addr" rows="2" placeholder="Helpful if the service needs a visit or delivery">${esc(currentCustomer?currentCustomer.address:'')}</textarea></div>
+  <div class="field"><label>What do you need? (optional)</label><textarea id="sr_notes" rows="3" placeholder="Any details that'll help us quote accurately…"></textarea></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="submitServiceRequest()">Submit Request →</button></div>`;
+  document.getElementById('checkoutBg').classList.add('show');
+}
+async function submitServiceRequest(){
+  const name=document.getElementById('sr_name').value.trim();
+  const phone=document.getElementById('sr_phone').value.trim();
+  const address=document.getElementById('sr_addr').value.trim();
+  const notes=document.getElementById('sr_notes').value.trim();
+  if(!name){toast('Enter your name','error');return;}
+  if(!phone||phone.length<10){toast('Enter a valid phone number','error');return;}
+  const s=window._svcReqService;
+  try{
+    const ref=await db.collection('serviceRequests').add({
+      customerName:name,customerPhone:phone,customerAddress:address,notes,
+      serviceId:s.id,serviceName:s.name,status:'pending',createdAt:new Date().toISOString()
+    });
+    try{
+      await db.collection('storeCustomers').doc(phone).set({name,address,phone,updatedAt:new Date().toISOString()},{merge:true});
+      currentCustomer={phone,name,address};
+      localStorage.setItem('sdp_customer',JSON.stringify(currentCustomer));
+      updateIdentifyLabel();
+    }catch(e){}
+    gaEvent('generate_lead',{currency:'BDT',value:0,service_name:s.name});
+    fbEvent('Lead',{content_name:s.name});
+    const code=ref.id.slice(-6).toUpperCase();
+    document.getElementById('checkoutTitle').textContent='Request Sent!';
+    document.getElementById('checkoutBody').innerHTML=`
+    <div class="success-wrap">
+      <div class="success-icon">✓</div>
+      <p style="color:var(--text2);font-size:.88rem;">Thank you${name?', '+esc(name):''}! We've received your request for <b>${esc(s.name)}</b>.</p>
+      <div class="order-code">#${code}</div>
+      <p style="color:var(--text2);font-size:.82rem;margin-bottom:18px;">We'll call <b>${esc(phone)}</b> after reviewing your requirements.</p>
+      <button class="btn btn-primary" style="width:100%;" onclick="closeCheckout();openServices();">Back to Services</button>
+    </div>`;
+  }catch(e){toast('Could not submit — please try again or call us','error');console.error(e);}
+}
+
 function buildWishlistView(){
   const items=PRODUCTS.filter(p=>WISHLIST.includes(p.id));
   return `<section class="grid-section">
@@ -741,6 +869,16 @@ function buildHome(){
   if(featured.length)html+=hscrollSection('featScroll','','⭐','Featured Products',featured.slice(0,10),'featured');
   if(bestSellers.length)html+=hscrollSection('bestScroll','tinted','🔥','Best Sellers',bestSellers.slice(0,10),'bestsellers',true);
 
+  if(SERVICES.length){
+    html+=`<section class="sec tinted"><div class="wrap" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:var(--navy);border-radius:var(--r);padding:22px 24px;color:#fff;">
+      <div>
+        <h2 style="font-size:1.15rem;font-weight:800;margin-bottom:4px;">🧰 Need a service, not a product?</h2>
+        <p style="font-size:.84rem;color:#cbd5e1;">Printing, visa processing, ticketing, web development, furniture work & more — get a quote in minutes.</p>
+      </div>
+      <button class="add-btn" style="flex-shrink:0;padding:11px 22px;font-size:.84rem;" onclick="openServices()">Browse Services →</button>
+    </div></section>`;
+  }
+
   html+=`<section class="grid-section"><div class="sec-hd" style="max-width:1180px;margin:0 auto 14px;"><h2>🛍️ All Products</h2></div>
     <div class="pgrid">${buildProductGrid(PRODUCTS)}</div>
   </section>`;
@@ -787,6 +925,7 @@ function openCatMenu(){
   document.getElementById('catMenuBody').innerHTML=`
     <div class="cat-menu-item" onclick="closeCatMenu();goHome();"><span>🏠</span><span>Home</span></div>
     <div class="cat-menu-item" onclick="closeCatMenu();goHome();document.getElementById('searchBox').focus();"><span>🛍️</span><span>All Products</span><span class="cmi-count">${PRODUCTS.length}</span></div>
+    <div class="cat-menu-item" onclick="closeCatMenu();openServices();"><span>🧰</span><span>Services</span><span class="cmi-count">${SERVICES.length}</span></div>
     <div style="height:1px;background:var(--border);margin:8px 0;"></div>
     ${cats.map(c=>`<div class="cat-menu-item" onclick="closeCatMenu();openCategory('${esc(c)}');"><span>${catIcon(c)}</span><span>${esc(c)}</span><span class="cmi-count">${PRODUCTS.filter(p=>p.category===c).length}</span></div>`).join('')}
     <div style="height:1px;background:var(--border);margin:8px 0;"></div>
@@ -1153,7 +1292,7 @@ function buildMyOrders(){
     <h1 class="pdp-name" style="margin-bottom:16px;">📦 My Orders</h1>
     <div id="myOrdersList"><div class="empty-state">Loading…</div></div>
   </div>`;
-  loadMyOrders();
+  setTimeout(loadMyOrders,0);
   return root;
 }
 async function loadMyOrders(){
