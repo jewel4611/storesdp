@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.supremegroup.sdpstore",
+      "sha256_cert_fingerprints": ["48:BF:24:17:56:DE:5B:C9:2D:29:F8:E9:43:DE:FC:43:C4:86:9E:73:A0:20:CC:FF:4D:3B:DB:2B:0B:CA:D0:64"]
+    }
+  }
+]
