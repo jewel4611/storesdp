@@ -1,5 +1,12 @@
 # Supreme Digital Point — Online Store
 
+> **Since Nov 2026 this site is generated.** `index.html`, the helper scripts, `policy/`, `privacy/`, `manifest.json`,
+> `sw.js`, `sitemap.xml` and `robots.txt` are written by `tools/sdpstore_from_mart.py` in the `supremegroup-site` repo
+> (the Supreme Mart storefront with Supreme Digital Point's name, shop address, logo, colours and Pixel).
+> Don't edit those files here — change the storefront there, run the tool, then commit and push this repo.
+> Coupons, reviews, online payment and order alerts use the server at `supremegroup.xyz/mart/*.php`; orders carry `shop: 'sdp'`.
+
+
 Customer-facing storefront for Supreme Digital Point (Mirpur, Dhaka). Reads live
 product stock/prices from Firebase Firestore (shared with the SDP Online admin
 app), lets customers browse, wishlist, and check out with Cash on Delivery or

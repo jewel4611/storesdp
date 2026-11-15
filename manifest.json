@@ -1,37 +1,14 @@
 {
-  "name": "Supreme Digital Point",
-  "short_name": "SDP Shop",
-  "description": "Shop electronics, mobile accessories, computer parts, stationery and more from Supreme Digital Point, Mirpur, Dhaka.",
+  "name": "Supreme Digital Point — Online Store",
+  "short_name": "SDP Store",
+  "description": "Electronics, mobile accessories, computer parts and more — Mirpur-1, Dhaka. Cash on delivery.",
   "start_url": "/",
-  "id": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#FBF8F3",
-  "theme_color": "#0f172a",
-  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#1E3A8A",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }
