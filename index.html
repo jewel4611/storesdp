@@ -1008,6 +1008,7 @@ function parseViewFromURL(){
   if(params.get('view')==='flashsale')return{name:'flashsale'};
   if(params.get('view')==='featured')return{name:'featured'};
   if(params.get('view')==='bestsellers')return{name:'bestsellers'};
+  if(params.get('view')==='all')return{name:'all'};
   if(params.get('view')==='services')return{name:'services'};
   return{name:'home'};
 }
@@ -1022,7 +1023,7 @@ function updateURL(){
   else if(currentView.name==='policy')url+='?view=policy';
   else if(currentView.name==='wishlist')url+='?view=wishlist';
   else if(currentView.name==='services')url+='?view=services';
-  else if(['flashsale','featured','bestsellers'].includes(currentView.name))url+='?view='+currentView.name;
+  else if(['flashsale','featured','bestsellers','all'].includes(currentView.name))url+='?view='+currentView.name;
   history.pushState({view:currentView},'',url);
 }
 function updateMeta(title,desc){
@@ -1252,6 +1253,7 @@ function renderView(){
   if(currentView.name==='flashsale'){root.innerHTML=buildFlashSaleView();return;}
   if(currentView.name==='featured'){root.innerHTML=buildFeaturedView();return;}
   if(currentView.name==='bestsellers'){root.innerHTML=buildBestSellersView();return;}
+  if(currentView.name==='all'){root.innerHTML=buildAllView();return;}
   if(currentView.name==='services'){root.innerHTML=buildServicesView();return;}
   if(currentView.name==='search'){root.innerHTML=buildSearchResults();return;}
   if(currentView.name==='category'){root.innerHTML=buildCategoryView(currentView.cat);return;}
@@ -1280,6 +1282,8 @@ function applyViewMeta(){
     updateMeta('Flash Sale — Supreme Digital Point','Limited-time deals at Supreme Digital Point, Mirpur-1, Dhaka.');return;
   }else if(currentView.name==='featured'){
     updateMeta('Featured Products — Supreme Digital Point','Hand-picked products from Supreme Digital Point, Mirpur-1, Dhaka.');return;
+  }else if(currentView.name==='all'){
+    updateMeta('All Products — Supreme Digital Point','Browse every product at Supreme Digital Point, Mirpur-1, Dhaka. Cash on delivery, bKash/Nagad/Upay accepted.');return;
   }else if(currentView.name==='bestsellers'){
     updateMeta('Best Sellers — Supreme Digital Point','Our most popular products at Supreme Digital Point, Mirpur-1, Dhaka.');return;
   }else if(currentView.name==='services'){
@@ -1456,12 +1460,21 @@ function buildFeaturedView(){
     ${items.length?`<div class="pgrid">${buildProductGrid(items)}</div>`:`<div class="empty-state"><div class="em-icon">⭐</div>No featured products right now.</div>`}
   </section>`;
 }
+function buildAllView(){
+  const list=mfApply(PRODUCTS);
+  return `<section class="grid-section">
+    <div class="breadcrumb" style="max-width:1180px;margin:0 auto 12px;"><a href="#" onclick="goHome();return false;">Home</a> › All products</div>
+    <div class="sec-hd" style="max-width:1180px;margin:0 auto 10px;"><h2>All products</h2><span style="font-size:.8rem;color:var(--text2);">${PRODUCTS.length} items</span></div>
+    ${mfBar(PRODUCTS.length,list.length)}
+    <div class="pgrid">${buildProductGrid(list)}</div>
+  </section>`;
+}
 function buildBestSellersView(){
   const items=[...PRODUCTS].filter(p=>(p.unitsSold60d||0)>0).sort((a,b)=>(b.unitsSold60d||0)-(a.unitsSold60d||0));
   return `<section class="grid-section">
     <div class="breadcrumb" style="max-width:1180px;margin:0 auto 12px;"><a href="#" onclick="goHome();return false;">Home</a> › Best Sellers</div>
     <div class="sec-hd" style="max-width:1180px;margin:0 auto 14px;"><h2>🔥 Best Sellers</h2><span style="font-size:.8rem;color:var(--text2);">${items.length} item(s)</span></div>
-    ${items.length?`<div class="pgrid">${items.map(p=>productCard(p,true)).join('')}</div>`:`<div class="empty-state"><div class="em-icon">🔥</div>No sales data yet.</div>`}
+    ${items.length?`<div class="pgrid">${buildProductGrid(items,true)}</div>`:`<div class="empty-state"><div class="em-icon">🔥</div>No sales data yet.</div>`}
   </section>`;
 }
 function buildPolicyPage(){
@@ -1496,10 +1509,10 @@ function buildPolicyPage(){
 /* ═══════════════════════════════════
    HOME VIEW
 ═══════════════════════════════════ */
-function hscrollSection(sectionId,cls,icon,title,items,seeAllView,isBest){
+function hscrollSection(sectionId,cls,icon,title,items,seeAllView,isBest,seeAllJs){
   return `<section class="sec ${cls}"><div class="sec-hd">
       <h2>${icon} ${title}</h2>
-      <a href="#" class="see-all" onclick="openSeeAll('${seeAllView}');return false;">See All →</a>
+      <a href="#" class="see-all" onclick="${seeAllJs||`openSeeAll('${seeAllView}')`};return false;">See All →</a>
     </div>
     <div class="hscroll-row">
       <button class="hscroll-arrow left" onclick="scrollHscroll('${sectionId}',-1)" aria-label="Scroll left">‹</button>
@@ -1542,9 +1555,13 @@ function buildHome(){
       <button class="add-btn" style="flex-shrink:0;padding:0 22px;min-height:46px;font-size:.86rem;background:var(--gold2);color:var(--ink);" onclick="openServices()">Browse services →</button>
     </div></section>`;
   }
-  html+=`<section class="grid-section"><div class="sec-hd" style="max-width:1180px;margin:0 auto 14px;"><h2>All products</h2></div>
-    <div class="pgrid">${buildProductGrid(PRODUCTS)}</div>
-  </section>`;
+  /* a short row from each category (biggest first, in-stock items first) instead of every product on the home page */
+  const byCat=cats.map(c=>[c,PRODUCTS.filter(p=>p.category===c)]).filter(x=>x[1].length).sort((a,b)=>b[1].length-a[1].length).slice(0,10);
+  byCat.forEach(([c,items],i)=>{
+    const top=[...items].sort((a,b)=>((b.qty||0)>0)-((a.qty||0)>0)||(b.unitsSold60d||0)-(a.unitsSold60d||0)).slice(0,10);
+    html+=hscrollSection('catRow'+i,'',catIcon(c),esc(c),top,'',false,`openCategory('${esc(c).replace(/'/g,"\\'")}')`);
+  });
+  html+=`<section class="sec" style="text-align:center;padding-top:6px;"><button type="button" class="add-btn" style="padding:0 28px;min-height:48px;font-size:.9rem;" onclick="openSeeAll('all')">Browse all ${PRODUCTS.length} products →</button></section>`;
   return html;
 }
 
@@ -1593,9 +1610,25 @@ function buildSearchResults(){
   </section>`;
 }
 
-function buildProductGrid(list){
+/* A product list shows 24 cards, then "Show more" adds the next 24 — a long list never loads all at once.
+   The count is kept while the same list is on screen (a live stock update redraws the page). */
+const GRID_STEP=24;let _gridList=[],_gridShown=0,_gridBest=false,_gridKey='';
+function buildProductGrid(list,isBest){
   if(!list.length)return `<div class="empty-state"><div class="em-icon">🔍</div>No products found.</div>`;
-  return list.map(p=>productCard(p)).join('');
+  const key=JSON.stringify([currentView,window._mf,(document.getElementById('searchBox')||{}).value||'']);
+  _gridShown=key===_gridKey?Math.min(list.length,Math.max(_gridShown,GRID_STEP)):Math.min(list.length,GRID_STEP);
+  _gridKey=key;_gridList=list;_gridBest=!!isBest;
+  return list.slice(0,_gridShown).map(p=>productCard(p,_gridBest)).join('')+gridMoreBtn();
+}
+function gridMoreBtn(){
+  const left=_gridList.length-_gridShown;
+  return left>0?`<div id="gridMore" style="grid-column:1/-1;text-align:center;padding:14px 0 6px;"><button type="button" class="add-btn" style="padding:0 26px;min-height:46px;font-size:.88rem;" onclick="gridMore()">Show more <span style="opacity:.8;font-weight:600">(${left} more)</span></button></div>`:'';
+}
+function gridMore(){
+  const m=document.getElementById('gridMore');if(!m)return;
+  const next=_gridList.slice(_gridShown,_gridShown+GRID_STEP);_gridShown+=next.length;
+  m.insertAdjacentHTML('beforebegin',next.map(p=>productCard(p,_gridBest)).join(''));
+  m.outerHTML=gridMoreBtn();
 }
 
 /* ═══════════════════════════════════
