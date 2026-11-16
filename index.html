@@ -1010,6 +1010,7 @@ function parseViewFromURL(){
   if(params.get('view')==='bestsellers')return{name:'bestsellers'};
   if(params.get('view')==='all')return{name:'all'};
   if(params.get('view')==='services')return{name:'services'};
+  if(params.get('view')==='fashion'){const f={};['g','t','s'].forEach(k=>{if(params.get(k))f[k]=params.get(k);});return{name:'fashion',f};}
   return{name:'home'};
 }
 function updateURL(){
@@ -1023,6 +1024,7 @@ function updateURL(){
   else if(currentView.name==='policy')url+='?view=policy';
   else if(currentView.name==='wishlist')url+='?view=wishlist';
   else if(currentView.name==='services')url+='?view=services';
+  else if(currentView.name==='fashion'){url+='?view=fashion';const f=currentView.f||{};['g','t','s'].forEach(k=>{if(f[k])url+='&'+k+'='+encodeURIComponent(f[k]);});}
   else if(['flashsale','featured','bestsellers','all'].includes(currentView.name))url+='?view='+currentView.name;
   history.pushState({view:currentView},'',url);
 }
@@ -1255,6 +1257,7 @@ function renderView(){
   if(currentView.name==='bestsellers'){root.innerHTML=buildBestSellersView();return;}
   if(currentView.name==='all'){root.innerHTML=buildAllView();return;}
   if(currentView.name==='services'){root.innerHTML=buildServicesView();return;}
+  if(currentView.name==='fashion'){filterBar.classList.add('hide');root.innerHTML=window.FASHION?FASHION.corner():'<div class="empty-state" style="padding:40px">Loading…</div>';return;}
   if(currentView.name==='search'){root.innerHTML=buildSearchResults();return;}
   if(currentView.name==='category'){root.innerHTML=buildCategoryView(currentView.cat);return;}
   if(currentView.name==='shop'){root.innerHTML=buildShopView(currentView.id);return;}
@@ -1286,6 +1289,8 @@ function applyViewMeta(){
     updateMeta('All Products — Supreme Digital Point','Browse every product at Supreme Digital Point, Mirpur-1, Dhaka. Cash on delivery, bKash/Nagad/Upay accepted.');return;
   }else if(currentView.name==='bestsellers'){
     updateMeta('Best Sellers — Supreme Digital Point','Our most popular products at Supreme Digital Point, Mirpur-1, Dhaka.');return;
+  }else if(currentView.name==='fashion'){
+    updateMeta('Fashion Corner — Men, Women & Kids Clothing | Supreme Digital Point','ছেলে, মেয়ে আর বাচ্চাদের পোশাক — সাইজ চার্টসহ, ক্যাশ অন ডেলিভারি, সারা দেশে ডেলিভারি। Supreme Digital Point, Dhaka.');return;
   }else if(currentView.name==='services'){
     updateMeta('Services — Supreme Digital Point','Printing, visa processing, ticketing, web development, furniture work and more from Supreme Digital Point, Mirpur-1, Dhaka.');return;
   }
@@ -1439,7 +1444,7 @@ function buildWishlistView(){
   </section>`;
 }
 function wishAddAll(){
-  const add=PRODUCTS.filter(p=>WISHLIST.includes(p.id)&&(p.qty||0)>0&&!CART.find(c=>c.id===p.id));
+  const add=PRODUCTS.filter(p=>WISHLIST.includes(p.id)&&(p.qty||0)>0&&!CART.find(c=>c.id===p.id)&&!(window.FASHION&&FASHION.isF(p)));   // clothing needs a size first
   add.forEach(p=>{CART.push({id:p.id,name:p.name,price:effectivePrice(p),qty:1,imageUrl:p.imageUrl||(p.images&&!p.imgCount&&p.images[0])||''});_setCartImg(p.id);});
   saveCart();toast(`${add.length} item(s) added to cart`);renderView();
 }
@@ -1543,6 +1548,7 @@ function buildHome(){
       }).join('')}</div></section>`;
   }
   if(flash.length)html+=hscrollSection('flashScroll','','⚡','Flash sale'+flashClock(),flash.slice(0,10),'flashsale');
+  if(window.FASHION)html+=FASHION.homeTile();
   html+=`<section class="sec" style="padding-top:4px;padding-bottom:4px;"><div class="trust"><span><b>✓</b>Cash on delivery</span><span><b>✓</b>bKash · Nagad · Upay</span><span><b>✓</b>Free delivery in Tejgaon &amp; Paikpara</span><span><b>✓</b>Live stock from our shop</span></div></section>`;
   if(bestSellers.length)html+=hscrollSection('bestScroll','','','Best sellers',bestSellers.slice(0,10),'bestsellers',true);
   if(featured.length)html+=hscrollSection('featScroll','','','Featured',featured.slice(0,10),'featured');
@@ -1649,6 +1655,7 @@ function openCatMenu(){
     <div class="cat-menu-item" onclick="closeCatMenu();goHome();"><span>🏠</span><span>Home</span></div>
     <div class="cat-menu-item" onclick="closeCatMenu();goHome();document.getElementById('searchBox').focus();"><span>🛍️</span><span>All Products</span><span class="cmi-count">${PRODUCTS.length}</span></div>
     <div class="cat-menu-item" onclick="closeCatMenu();openServices();"><span>🧰</span><span>Services</span><span class="cmi-count">${SERVICES.length}</span></div>
+    ${window.FASHION&&FASHION.items().length?`<div class="cat-menu-item" onclick="FASHION.go()"><span>👗</span><span>Fashion Corner — ফ্যাশন কর্নার</span><span class="cmi-count">${FASHION.items().length}</span></div>`:''}
     <div style="height:1px;background:var(--border);margin:8px 0;"></div>
     ${cats.map(c=>`<div class="cat-menu-item" onclick="closeCatMenu();openCategory('${esc(c)}');"><span>${catIcon(c)}</span><span>${esc(c)}</span><span class="cmi-count">${PRODUCTS.filter(p=>p.category===c).length}</span></div>`).join('')}
     <div style="height:1px;background:var(--border);margin:8px 0;"></div>
@@ -1684,7 +1691,7 @@ function productCard(p,isBest){
     </div>
     <div class="pcard-body">
       <span class="pcard-cat">${esc(p.category)||'General'}</span>${p.shopName?`<span class="pcard-shop" onclick="openShop('${esc(p.shopId)}',event)" style="display:block;font-size:.68rem;color:#0F766E;font-weight:700;cursor:pointer;margin:1px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🏪 ${esc(p.shopName)}</span>`:''}
-      <span class="pcard-name" onclick="openProduct('${p.id}')">${esc(p.name)}</span>
+      <span class="pcard-name" onclick="openProduct('${p.id}')">${esc(p.name)}</span>${window.FASHION&&FASHION.isF(p)?FASHION.sizeLine(p):''}
       <div class="pcard-price-row">
         <span class="pcard-price ${onSale?'on-sale':''}">${fmt(price)}</span>
         ${onSale?`<span class="pcard-price-strike">${fmt(p.sellingPrice)}</span>`:(p.listPrice>price?`<span class="pcard-price-strike">${fmt(p.listPrice)}</span>`:'')}
@@ -1692,7 +1699,7 @@ function productCard(p,isBest){
       ${onSale?`<div class="pcard-countdown" data-ends="${p.saleEndsAt}"></div>`:''}
       <div class="pcard-foot">
         <span class="stock-txt ${out?'stock-out':low?'stock-low':'stock-in'}">${out?'Out of stock':low?p.qty+' left':'In stock'}</span>
-        ${out?`<button class="add-btn" disabled>Sold out</button>`:
+        ${out?`<button class="add-btn" disabled>Sold out</button>`:window.FASHION&&FASHION.isF(p)?`<button class="add-btn" onclick="openProduct('${p.id}')">Select size</button>`:
           inCart?`<div class="qty-stepper"><button onclick="changeQty('${p.id}',-1)">−</button><span>${inCart.qty}</span><button onclick="changeQty('${p.id}',1)">+</button></div>`:
           `<button class="add-btn" onclick="addToCart('${p.id}')">Add</button>`}
       </div>
@@ -1774,6 +1781,7 @@ function buildProductDetail(id){
             ${p.category?`<span onclick="openCategory('${esc(p.category)}')" style="cursor:pointer;">${esc(p.category)}</span>`:''}
           </div>
         </div>
+        ${window.FASHION&&FASHION.isF(p)?FASHION.pdpBlock(p):''}
         <div class="pdp-block">
           <div class="info-row"><span class="ir-ic">${ICO_TRUCK}</span><div><b>Delivery — free in Tejgaon &amp; Paikpara</b><br><span>Elsewhere Pathao's charge for your area, shown at checkout · usually within 24 hours</span><div style="margin-top:7px;display:flex;gap:7px;align-items:center;flex-wrap:wrap"><span style="font-size:.72rem;color:var(--muted)">Delivered by</span>${partnerRow(DELIVERY_KEYS,true)}</div></div></div>
           ${EPS_ON&&emiOk(effectivePrice(p))?`<div class="info-row"><span class="ir-ic">📆</span><div><b>EMI on credit card — from ${fmt(emiFrom(effectivePrice(p)))}/month</b><br><span>${EMI.banks.length} banks · up to ${emiMaxMonths()} months · pay online with EPS</span><br><button type="button" class="emi-link" onclick="openEmi(${Number(effectivePrice(p))||0})">See the EMI plan for your bank</button></div></div>`:''}
@@ -1785,8 +1793,8 @@ function buildProductDetail(id){
         <div class="pdp-block ask-row"><div style="font-size:.84rem;"><b>Questions about this item?</b><br><span style="color:var(--muted);">We reply on WhatsApp</span></div><a href="${wa}" target="_blank" rel="noopener">Ask on WhatsApp</a></div>
         <div class="buy-bar">
           ${out?`<button class="bb-add" disabled>Out of stock</button><a class="bb-buy" href="${wa}" target="_blank" rel="noopener">Ask when it's back</a>`:
-          `<div class="qty-stepper"><button onclick="pdpChangeQty(-1)" aria-label="Less">−</button><span id="pdpQty">${inCart?inCart.qty:1}</span><button onclick="pdpChangeQty(1)" aria-label="More">+</button></div>
-          <button class="bb-add" onclick="addToCartFromPdp('${p.id}')">${inCart?'Update cart':'Add to cart'}</button>
+          `<div class="qty-stepper"><button onclick="pdpChangeQty(-1)" aria-label="Less">−</button><span id="pdpQty">${inCart&&!window.FASHION&&FASHION.isF(p)?inCart.qty:1}</span><button onclick="pdpChangeQty(1)" aria-label="More">+</button></div>
+          <button class="bb-add" onclick="addToCartFromPdp('${p.id}')">${inCart&&!window.FASHION&&FASHION.isF(p)?'Update cart':'Add to cart'}</button>
           <button class="bb-buy" onclick="buyNowFromPdp('${p.id}')">Buy now</button>`}
         </div>
       </div>
@@ -1794,7 +1802,7 @@ function buildProductDetail(id){
     <div class="pdp-related">${buildRelatedProducts(p)}</div>
   </div>`;
 }
-function buyNowFromPdp(id){addToCartFromPdp(id);openCheckout();}
+function buyNowFromPdp(id){const p=PRODUCTS.find(x=>x.id===id);if(window.FASHION&&FASHION.isF(p))return FASHION.add(id,true);addToCartFromPdp(id);openCheckout();}
 function buildRelatedProducts(p){
   const related=PRODUCTS.filter(x=>x.id!==p.id&&x.category===p.category).slice(0,8);
   if(!related.length)return '';
@@ -1823,7 +1831,7 @@ function pdpSetImg(i){
   const c=document.getElementById('pdpCount');if(c)c.textContent=(i+1)+' / '+imgs.length;
 }
 function pdpChangeQty(delta){
-  const p=PRODUCTS.find(x=>x.id===window._pdpId);if(!p)return;
+  const p=PRODUCTS.find(x=>x.id===window._pdpId);if(!p)return;if(window.FASHION&&FASHION.isF(p))return FASHION.stepQty(delta);
   const el=document.getElementById('pdpQty');
   let val=Number(el.textContent)+delta;
   if(val<1)val=1;
@@ -1831,7 +1839,7 @@ function pdpChangeQty(delta){
   el.textContent=val;
 }
 function addToCartFromPdp(id){
-  const p=PRODUCTS.find(x=>x.id===id);if(!p)return;
+  const p=PRODUCTS.find(x=>x.id===id);if(!p)return;if(window.FASHION&&FASHION.isF(p))return FASHION.add(id,false);
   const qty=Number(document.getElementById('pdpQty').textContent)||1;
   const existing=CART.find(c=>c.id===id);
   if(existing){existing.qty=qty;}
@@ -1887,23 +1895,24 @@ function closeLightbox(){document.getElementById('lightboxBg').classList.remove(
    CART
 ═══════════════════════════════════ */
 function addToCart(id){
-  const p=PRODUCTS.find(x=>x.id===id);if(!p)return;
+  const p=PRODUCTS.find(x=>x.id===id);if(!p)return;if(window.FASHION&&FASHION.isF(p)){openProduct(id);return;}   // a size / colour must be chosen first
   if((p.qty||0)<=0){toast('Out of stock','error');return;}
   CART.push({id,name:p.name,price:effectivePrice(p),qty:1,imageUrl:p.imageUrl||(p.images&&!p.imgCount&&p.images[0])||''});_setCartImg(id);
   saveCart();renderView();renderCartBody();toast(`${p.name} added to cart`);
   gaEvent('add_to_cart',{currency:'BDT',value:effectivePrice(p),items:[gaItem(p,1)]});
   fbEvent('AddToCart',{content_ids:[p.id],content_type:'product',content_name:p.name,value:effectivePrice(p),currency:'BDT'});
 }
-function changeQty(id,delta){
-  const item=CART.find(c=>c.id===id);if(!item)return;
-  const p=PRODUCTS.find(x=>x.id===id);
+function changeQty(id,delta){   // id = the cart line: product id, or product|size|colour for a fashion item
+  const item=CART.find(c=>(c.key||c.id)===id);if(!item)return;
+  const p=PRODUCTS.find(x=>x.id===item.id);
+  const max=item.vk&&window.FASHION?FASHION.lineMax(item):(p?p.qty:0);
   const newQty=item.qty+delta;
-  if(newQty<=0){CART=CART.filter(c=>c.id!==id);}
-  else if(p&&newQty>p.qty){toast(`Only ${p.qty} in stock`,'error');return;}
+  if(newQty<=0){CART=CART.filter(c=>(c.key||c.id)!==id);}
+  else if(p&&newQty>max){toast(`Only ${max} in stock`,'error');return;}
   else{item.qty=newQty;}
   saveCart();renderView();renderCartBody();
 }
-function removeFromCart(id){CART=CART.filter(c=>c.id!==id);saveCart();renderView();renderCartBody();}
+function removeFromCart(id){CART=CART.filter(c=>(c.key||c.id)!==id);saveCart();renderView();renderCartBody();}
 function cartTotal(){return CART.reduce((s,c)=>s+c.qty*c.price,0);}
 // Cash on delivery charge: 1% of (products + delivery) — ৳10 per ৳1,000 — never less than ৳10. Only for COD orders.
 function codCharge(){return checkoutData.paymentMethod==='COD'?Math.max(10,Math.ceil((cartTotal()+(checkoutData.deliveryFee||0))*0.01)):0;}
@@ -1925,9 +1934,9 @@ function renderCartBody(){
     <div class="cart-item-info">
       <div class="cart-item-name">${esc(c.name)}</div>
       <div class="cart-item-price">${fmt(c.price)} × ${c.qty} = ${fmt(c.price*c.qty)}</div>
-      <div class="cart-item-remove" onclick="removeFromCart('${c.id}')">Remove</div>
+      <div class="cart-item-remove" onclick="removeFromCart('${esc(c.key||c.id)}')">Remove</div>
     </div>
-    <div class="qty-stepper" style="align-self:center;"><button onclick="changeQty('${c.id}',-1)">−</button><span>${c.qty}</span><button onclick="changeQty('${c.id}',1)">+</button></div>
+    <div class="qty-stepper" style="align-self:center;"><button onclick="changeQty('${esc(c.key||c.id)}',-1)">−</button><span>${c.qty}</span><button onclick="changeQty('${esc(c.key||c.id)}',1)">+</button></div>
   </div>`).join('');
   document.getElementById('cartTotal').textContent=fmt(cartTotal());
   foot.style.display='block';
@@ -2588,7 +2597,7 @@ async function ckCollect(){
   const dv=ckDelivery();
   checkoutData={...checkoutData,name:p.name,phone:p.phone,address:p.address,note:String(checkoutData.note||'').trim(),deliveryFee:dv.fee,pa:dv.pa,_addr:p.a||checkoutData._addr};
   // prices may have changed since the item was put in the cart
-  const changed=[];CART.forEach(c=>{const x=PRODUCTS.find(y=>y.id===c.id);if(x){const now=effectivePrice(x);if(now&&now!==c.price){changed.push(c.name+': '+fmt(c.price)+' → '+fmt(now));c.price=now;}}});
+  const changed=[];CART.forEach(c=>{const x=PRODUCTS.find(y=>y.id===c.id);if(x){const now=c.vk&&window.FASHION?FASHION.priceOf(x,c.vk):effectivePrice(x);if(now&&now!==c.price){changed.push(c.name+': '+fmt(c.price)+' → '+fmt(now));c.price=now;}}});
   if(changed.length){saveCart();ckRefresh();toast('Price updated — '+changed.join(', ')+'. Please check the total and tap Place order again.','error');return false;}
   const g=await ckGuard(),gb=document.getElementById('ck_guard');
   if(g&&g.ok===false){if(gb){gb.hidden=false;gb.innerHTML='⚠️ '+esc(g.msg)+` <a href="https://wa.me/8801614501860" target="_blank" rel="noopener">WhatsApp us</a>`;gb.scrollIntoView({block:'center'});}return false;}
@@ -2766,7 +2775,8 @@ async function placeOrder(){
   if(!ok){again();return;}
   if(btn)btn.textContent='Placing order…';
   try{
-    for(const c of CART){
+    if(window.FASHION){const bad=FASHION.cartProblem(CART);if(bad){toast('Sorry, '+bad,'error');again();return;}}
+    else for(const c of CART){
       const p=PRODUCTS.find(x=>x.id===c.id);
       if(!p||(p.qty||0)<c.qty){
         toast(`Sorry, ${c.name} — only ${p?p.qty:0} left in stock`,'error');
@@ -2778,7 +2788,7 @@ async function placeOrder(){
     const order={
       customerName:checkoutData.name,customerPhone:checkoutData.phone,customerAddress:checkoutData.address,
       note:[checkoutData.note||'',cpOff()?`🎟 Coupon ${checkoutData.cp.code} −৳${cpOff()}`:'',ckNeedAdvance()?`Delivery charge ${fmt(ckAdvanceAmount())} paid in advance (TrxID ${checkoutData.trxId}, from ${checkoutData.senderNumber})`:''].filter(Boolean).join(' | ').slice(0,500),
-      items:CART.map(c=>({productId:c.id,name:c.name,qty:c.qty,price:c.price})),
+      items:CART.map(c=>({productId:c.id,name:c.name,qty:c.qty,price:c.price,...(c.vk?{vk:c.vk,size:c.size||'',color:c.color||''}:{})})),
       subtotal:cartTotal(),deliveryFee,grandTotal:orderTotal(),...(ptsUse()?{pointsUsed:ptsUse()}:{}),
       paymentMethod:checkoutData.paymentMethod,
       trxId:checkoutData.trxId||'',senderNumber:checkoutData.senderNumber||'',
@@ -2969,6 +2979,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeCheckout();clo
 <script src="reviews.js?v=2"></script>
 <script>(function(){var t=(new URLSearchParams(location.search).get('track')||'').trim().toUpperCase();if(/^[A-Z0-9]{6,10}$/.test(t))setTimeout(function(){try{openTrackOrder();document.getElementById('track_code').value=t;submitTrackOrder();}catch(e){}},1200);})();/* QR on the parcel label → ?track=CODE */</script>
 <script>setTimeout(function(){try{fetch('https://supremegroup.xyz/mart/checkout.php?a=tick').catch(function(){});}catch(e){}},5000);/* reports unfinished checkouts to staff (server runs it at most every 2 min) */</script>
+<script src="fashion.js?v=1" defer></script>
 <script src="growth.js?v=1" defer></script>
 </body>
 </html>
