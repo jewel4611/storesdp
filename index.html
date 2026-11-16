@@ -1245,7 +1245,7 @@ function renderView(){
   document.body.classList.toggle('pdp-mode',vn==='product');
   [['bnHome',vn==='home'],['bnOrders',vn==='myorders'],['bnCats',vn==='category'],['bnAccount',vn==='account']].forEach(([i,on])=>{const b=document.getElementById(i);if(b)b.classList.toggle('on',on);});
   document.querySelector('.search-row').classList.toggle('hide',vn==='product');
-  if(currentView.name==='product'){filterBar.classList.add('hide');root.innerHTML=buildProductDetail(currentView.id);return;}
+  if(currentView.name==='product'){filterBar.classList.add('hide');root.innerHTML=buildProductDetail(currentView.id);setTimeout(fillShopStats,0);return;}
   if(currentView.name==='servicedetail'){filterBar.classList.add('hide');root.innerHTML=buildServiceDetail(currentView.id);return;}
   filterBar.classList.toggle('hide',vn==='home');
   if(currentView.name==='myorders'){filterBar.classList.add('hide');root.innerHTML=buildMyOrders();return;}
@@ -1260,7 +1260,7 @@ function renderView(){
   if(currentView.name==='fashion'){filterBar.classList.add('hide');root.innerHTML=window.FASHION?FASHION.corner():'<div class="empty-state" style="padding:40px">Loading…</div>';return;}
   if(currentView.name==='search'){root.innerHTML=buildSearchResults();return;}
   if(currentView.name==='category'){root.innerHTML=buildCategoryView(currentView.cat);return;}
-  if(currentView.name==='shop'){root.innerHTML=buildShopView(currentView.id);return;}
+  if(currentView.name==='shop'){root.innerHTML=buildShopView(currentView.id);setTimeout(fillShopStats,0);return;}
   root.innerHTML=buildHome();
   startFlashCountdowns();
 }
@@ -1589,11 +1589,25 @@ function mfBar(total,shown){const f=window._mf,chip=(k,l)=>`<button type="button
     ${shown!==total?`<span style="font-size:.78rem;color:var(--text2);">${shown} of ${total}</span>`:''}
   </div>`;}
 function openShop(id,ev){if(ev)ev.stopPropagation();currentView={name:'shop',id};updateURL();window.scrollTo(0,0);renderView();}
+/* product facts a partner shop gives (brand, model, origin, condition, warranty, delivery time) */
+function infoBlock(p){const i=p.info||{},C={New:'New',Used:'Used',Refurbished:'Refurbished'};const r=[['Brand',i.brand],['Model',i.model],['Made in',i.origin],['Condition',C[i.condition]||i.condition],['Warranty',i.warranty],['Delivery',i.delivery]].filter(x=>x[1]);
+  return r.length?`<div class="pdp-block"><div style="font-weight:800;margin-bottom:8px">Product info</div><dl style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:.84rem;margin:0">${r.map(x=>`<dt style="color:var(--text2);font-weight:700">${x[0]}</dt><dd style="margin:0">${esc(x[1])}</dd>`).join('')}</dl></div>`:'';}
+/* a partner shop's record for buyers: rating from reviews + on-time / cancel numbers (vendorStats, written by SDP Online) */
+const _VS={};
+function fillShopStats(){document.querySelectorAll('.vs-line[data-vs]').forEach(async el=>{const id=el.dataset.vs;if(!id||el.dataset.done)return;el.dataset.done=1;
+  try{if(!(id in _VS)){const d=await db.collection('vendorStats').doc(id).get();_VS[id]=d.exists?d.data():null;}}catch(e){_VS[id]=null;}
+  const st=_VS[id]||{},R=window.MART_REV||{};let t=0,n=0;PRODUCTS.filter(p=>p.shopId===id).forEach(p=>{const r=R[p.id];if(r&&r.n){t+=r.a*r.n;n+=r.n;}});
+  const bits=[];if(n)bits.push(`⭐ <b>${(t/n).toFixed(1)}</b> (${n} review${n>1?'s':''})`);
+  if(st.onTimePct!=null&&st.orders90>=3)bits.push(`🚚 Ships on time <b>${st.onTimePct}%</b>`);
+  if(st.cancelPct!=null&&st.orders90>=3)bits.push(`Seller cancellations <b>${st.cancelPct}%</b>`);
+  if(st.verified)bits.push('<b style="color:#0F766E">✓ Verified shop</b>');
+  if(!bits.length)bits.push('New partner shop');
+  el.innerHTML=bits.join(' · ');});}
 function buildShopView(id){
   const all=PRODUCTS.filter(p=>p.shopId===id),list=mfApply(all),name=all[0]?all[0].shopName:'';
   return `<section class="grid-section">
     <div style="max-width:1180px;margin:0 auto 12px;background:linear-gradient(135deg,#F0FDFA,#ECFEFF);border:1px solid #CCFBF1;border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <span style="font-size:2rem">🏪</span><div style="flex:1;min-width:180px"><h2 style="margin:0;font-size:1.15rem">${esc(name||'Partner shop')}</h2><div style="font-size:.8rem;color:var(--text2)">Partner shop on Supreme Digital Point · ${esc(id)} · ${all.length} items · Delivered by Supreme Digital Point, cash on delivery</div></div></div>
+      <span style="font-size:2rem">🏪</span><div style="flex:1;min-width:180px"><h2 style="margin:0;font-size:1.15rem">${esc(name||'Partner shop')}</h2><div style="font-size:.8rem;color:var(--text2)">Partner shop on Supreme Digital Point · ${esc(id)} · ${all.length} items · Delivered by Supreme Digital Point, cash on delivery</div><div class="vs-line" data-vs="${esc(id)}" style="font-size:.8rem;margin-top:4px"></div></div></div>
     ${all.length?mfBar(all.length,list.length)+`<div class="pgrid">${buildProductGrid(list)}</div>`:'<div class="empty-state" style="padding:40px 16px">This shop has no products right now.</div>'}
   </section>`;
 }
@@ -1775,13 +1789,14 @@ function buildProductDetail(id){
         <div class="pdp-block">
           <h1 class="pdp-name">${esc(p.name)}</h1>
           ${onSale?'':`<div class="pdp-plain-price"><span class="pp">${fmt(price)}</span>${p.listPrice>price?` <s style="color:var(--muted);font-size:.9rem">${fmt(p.listPrice)}</s>`:''}</div>`}
-          ${p.shopName?`<div onclick="openShop('${esc(p.shopId)}')" style="margin-top:8px;display:inline-flex;gap:8px;align-items:center;background:#F0FDFA;border:1px solid #CCFBF1;border-radius:10px;padding:6px 10px;font-size:.8rem;cursor:pointer"><span>🏪</span><span>Sold by <b>${esc(p.shopName)}</b> · delivered by Supreme Digital Point</span><b style="color:#0F766E">Visit shop →</b></div>`:''}
+          ${p.shopName?`<div onclick="openShop('${esc(p.shopId)}')" style="margin-top:8px;display:inline-flex;gap:8px;align-items:center;background:#F0FDFA;border:1px solid #CCFBF1;border-radius:10px;padding:6px 10px;font-size:.8rem;cursor:pointer"><span>🏪</span><span>Sold by <b>${esc(p.shopName)}</b> · delivered by Supreme Digital Point</span><b style="color:#0F766E">Visit shop →</b></div><div class="vs-line" data-vs="${esc(p.shopId)}" style="font-size:.76rem;color:var(--text2);margin-top:4px"></div>`:''}
           <div class="pdp-chips">
             <span class="${out?'low':low?'low':'ok'}">● ${out?'Out of stock':low?`Only ${p.qty} left in shop`:'In stock'}</span>
             ${p.category?`<span onclick="openCategory('${esc(p.category)}')" style="cursor:pointer;">${esc(p.category)}</span>`:''}
           </div>
         </div>
         ${window.FASHION&&FASHION.isF(p)?FASHION.pdpBlock(p):''}
+        ${p.info?infoBlock(p):''}
         <div class="pdp-block">
           <div class="info-row"><span class="ir-ic">${ICO_TRUCK}</span><div><b>Delivery — free in Tejgaon &amp; Paikpara</b><br><span>Elsewhere Pathao's charge for your area, shown at checkout · usually within 24 hours</span><div style="margin-top:7px;display:flex;gap:7px;align-items:center;flex-wrap:wrap"><span style="font-size:.72rem;color:var(--muted)">Delivered by</span>${partnerRow(DELIVERY_KEYS,true)}</div></div></div>
           ${EPS_ON&&emiOk(effectivePrice(p))?`<div class="info-row"><span class="ir-ic">📆</span><div><b>EMI on credit card — from ${fmt(emiFrom(effectivePrice(p)))}/month</b><br><span>${EMI.banks.length} banks · up to ${emiMaxMonths()} months · pay online with EPS</span><br><button type="button" class="emi-link" onclick="openEmi(${Number(effectivePrice(p))||0})">See the EMI plan for your bank</button></div></div>`:''}
@@ -2731,7 +2746,7 @@ function renderOrderDetail(code,o,targetId){
   if(o.paymentMethod==='EPS')setTimeout(()=>odEps(docId,o,epsOpen),0);
   const ownOpen=o.courier&&(o.courier.provider==='own'||o.courier.provider==='sc')&&st!=='completed'&&st!=='cancelled';
   if(ownOpen)setTimeout(()=>odOtp(docId),0);
-  if(st==='completed')setTimeout(()=>odReviews(docId,o),0);
+  if(st==='completed')setTimeout(()=>{odReviews(docId,o);odReturn(docId,o);},0);
   if(o.pointsUsed)setTimeout(()=>{const g=document.querySelector('#'+targetId+' .od-sum.grand');if(g&&!document.getElementById('odPts'))g.insertAdjacentHTML('beforebegin',`<div class="od-sum" id="odPts" style="color:#15803D"><span>⭐ Points used</span><span>− ${fmt(o.pointsUsed)}</span></div>`);},0);
   document.getElementById(targetId).innerHTML=`
   <div class="od-hd"><div><span class="od-lbl">Order</span><b class="od-code">#${esc(code)}</b></div><div class="od-hd-r">${osChip(st)}<button class="od-copy" onclick="copyOrderCode('${esc(code)}')" title="Copy order code">Copy</button></div></div>
@@ -2746,7 +2761,7 @@ function renderOrderDetail(code,o,targetId){
     <div class="od-sum grand"><span>Total</span><span>${fmt(o.grandTotal)}</span></div></div>
   <div class="od-info"><div><span>Deliver to</span><b>${esc(o.customerName||'')}</b>${o.customerPhone?`<em>${esc(o.customerPhone)}</em>`:''}<em>${esc(o.customerAddress||'')}</em></div><div><span>Payment</span><b>${pay}</b></div></div>
   ${epsOpen?`<div id="epsBox2" style="margin:0 0 12px"></div>`:''}
-  ${st==='completed'?`<div id="odRev" hidden style="margin:0 0 12px;padding:12px 14px;border:1px solid var(--line,#eee);border-radius:12px"></div>`:''}
+  ${st==='completed'?`<div id="odRev" hidden style="margin:0 0 12px;padding:12px 14px;border:1px solid var(--line,#eee);border-radius:12px"></div><div id="odRet" hidden style="margin:0 0 12px;padding:12px 14px;border:1px solid var(--line,#eee);border-radius:12px"></div>`:''}
   <div class="btn-row"><a href="https://wa.me/8801614501860?text=${encodeURIComponent('Hi, I have a question about order #'+code)}" target="_blank" class="btn btn-ghost" style="text-align:center;">💬 Ask about this order</a></div>`;
 }
 
@@ -2893,6 +2908,39 @@ async function ckPoints(){
   on.onchange=upd;n.onchange=upd;
 }
 // order details → delivered: write / edit a review for each item
+/* ↩️ return / refund request (within RETURN_DAYS of delivery; one request per order; Supreme Digital Point checks it, the partner shop sees it) */
+const RETURN_DAYS=7,RET_WHY={wrong_item:'Wrong item received',damaged:'Damaged / not working',not_as_described:'Not as described',fake:'Fake / not original',size:'Size does not fit',missing:'Item / part missing',changed_mind:'Changed my mind'};
+const RET_ST={requested:['Request received — we will call you','#B45309'],approved:['Approved — we will pick it up','#1D4ED8'],received:['Item received — refund in progress','#1D4ED8'],refunded:['Refunded','#15803D'],rejected:['Not accepted','#B91C1C']};
+async function odReturn(id,o){
+  const el=document.getElementById('odRet');if(!el)return;
+  try{await authReady;}catch(e){}const u=auth.currentUser;if(!u||(o.customerUid&&o.customerUid!==u.uid))return;
+  let r=null;try{const d=await db.collection('returnRequests').doc(id).get();if(d.exists)r=d.data();}catch(e){}
+  const done=o.completedAt?new Date(o.completedAt).getTime():0,left=done?Math.ceil((done+RETURN_DAYS*864e5-Date.now())/864e5):0;
+  if(r){const s=RET_ST[r.status]||[r.status,'#475569'];el.innerHTML=`<div style="font-weight:800;margin:0 0 6px">↩️ Return request</div><div style="font-size:.84rem"><b style="color:${s[1]}">${s[0]}</b><br>${esc(RET_WHY[r.reason]||r.reason)} · ${(r.items||[]).map(i=>esc(i.name)+' × '+i.qty).join(', ')}${r.adminNote?`<br><span style="color:var(--text2)">${esc(r.adminNote)}</span>`:''}${r.refundAmount?`<br>Refund: <b>${fmt(r.refundAmount)}</b>`:''}</div>`;el.hidden=false;return;}
+  if(!done||left<=0)return;
+  window._odRet={id,o};
+  el.innerHTML=`<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div style="font-size:.84rem"><b>↩️ Problem with this order?</b><br><span style="color:var(--text2)">You can ask for a return within ${RETURN_DAYS} days of delivery — ${left} day${left>1?'s':''} left.</span></div><button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:.8rem" onclick="odRetForm()">Request a return</button></div>`;el.hidden=false;
+}
+function odRetForm(){
+  const d=window._odRet,el=document.getElementById('odRet');if(!d||!el)return;
+  el.innerHTML=`<div style="font-weight:800;margin:0 0 8px">↩️ Request a return</div>
+  ${(d.o.items||[]).map((it,i)=>`<label style="display:flex;gap:8px;align-items:center;font-size:.84rem;margin:4px 0"><input type="checkbox" id="rt_i${i}" style="width:18px;height:18px"> <span style="flex:1">${esc(it.name)}</span> ${it.qty>1?`<input type="number" id="rt_q${i}" min="1" max="${it.qty}" value="${it.qty}" style="width:60px">`:''}</label>`).join('')}
+  <div class="field" style="margin-top:8px"><label>What is wrong?</label><select id="rt_why">${Object.keys(RET_WHY).map(k=>`<option value="${k}">${RET_WHY[k]}</option>`).join('')}</select></div>
+  <div class="field"><label>Tell us more (what happened)</label><textarea id="rt_note" rows="3" maxlength="500"></textarea></div>
+  <p style="font-size:.76rem;color:var(--text2);margin:0 0 8px">Keep the item with its box and accessories. We will call you, pick it up and refund you after checking. "Changed my mind": the item must be unused, and the delivery charge is not refunded.</p>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="odReturn('${esc(d.id)}',window._odRet.o)">Cancel</button><button class="btn btn-primary" id="rt_go" onclick="odRetSend()">Send request</button></div>`;
+}
+async function odRetSend(){
+  const d=window._odRet;if(!d)return;const items=[];
+  (d.o.items||[]).forEach((it,i)=>{if(document.getElementById('rt_i'+i)?.checked){const q=Math.max(1,Math.min(it.qty,Number(document.getElementById('rt_q'+i)?.value)||it.qty));items.push(Object.assign({productId:it.productId||'',name:String(it.name).slice(0,150),qty:q,price:Number(it.price)||0},it.vk?{vk:it.vk}:{}));}});
+  if(!items.length)return toast('Choose the item(s) to return','error');
+  const note=(document.getElementById('rt_note').value||'').trim();if(note.length<5)return toast('Please tell us what happened','error');
+  const shopIds=[...new Set(items.map(i=>{const p=PRODUCTS.find(x=>x.id===i.productId);return p&&p.shopId?p.shopId:'';}).filter(Boolean))];
+  const b=document.getElementById('rt_go');b.disabled=true;
+  try{await db.collection('returnRequests').doc(d.id).set({orderId:d.id,orderCode:orderCode(d.id),customerUid:auth.currentUser.uid,customerName:String(d.o.customerName||'').slice(0,100),customerPhone:String(d.o.customerPhone||'').slice(0,20),items,reason:document.getElementById('rt_why').value,note:note.slice(0,500),shopIds,status:'requested',createdAt:new Date().toISOString()});
+    toast('Return request sent — we will call you','success');odReturn(d.id,d.o);}
+  catch(e){b.disabled=false;toast('Could not send: '+(e.code||e.message),'error');}
+}
 async function odReviews(id,o){
   const el=document.getElementById('odRev');if(!el)return;
   let j=null;try{await authReady;const u=auth.currentUser;if(!u)return;j=await fetch('https://supremegroup.xyz/mart/reviews.php?a=mine',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:id,idToken:await u.getIdToken()})}).then(r=>r.ok?r.json():null);}catch(e){}
